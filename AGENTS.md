@@ -8,4 +8,4 @@ This repository holds skills that fetch weather, climate, elevation and boundary
 4. Keep the data's caveats with the data. Say which source, grid and dates a result came from.
 5. Never invent a DOI, licence or date. Each skill ends with what to cite.
 
-This is the climate layer of [ai-ready-documentation](https://github.com/AgrDataSci/ai-ready-documentation). It works on its own and with the tricot skills in that suite.
+This is the environment layer of [ai-ready-documentation](https://github.com/AgrDataSci/ai-ready-documentation). It works on its own and with the tricot skills in that suite.

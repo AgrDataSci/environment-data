@@ -4,13 +4,13 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 <!-- badges: end -->
 
-## Climate data for on-farm trials and breeding
+## Environment data for on-farm trials and breeding
 
 > Brayden Youngberg, Kauê de Sousa
 
-Daily weather, elevation, administrative boundaries and climate hazards for points such as farms, trial sites and survey households, as agent skills and the code behind them. Built for breeders and the Climate Action team who need to know what stresses a site or season faces, with tricot trials or on their own.
+Everything you can learn about a place from its coordinates: daily weather, elevation, soil, the district it sits in and climate hazards, for points such as farms, trial sites and survey households, as agent skills and the code behind them. Built for breeders and the Climate Action team who need to know what a site or season is like, with tricot trials or on their own.
 
-This is the climate layer of [ai-ready-documentation](https://github.com/AgrDataSci/ai-ready-documentation), the AgrDataSci family of repositories for evidence, protocols, data and analysis. It is built from [template-repo-data-analysis](https://github.com/AgrDataSci/template-repo-data-analysis) and works on its own.
+This is the environment layer of [ai-ready-documentation](https://github.com/AgrDataSci/ai-ready-documentation), the AgrDataSci family of repositories for evidence, protocols, data and analysis. It is built from [template-repo-data-analysis](https://github.com/AgrDataSci/template-repo-data-analysis) and works on its own.
 
 ---
 
@@ -52,9 +52,9 @@ Scripts need only [`uv`](https://docs.astral.sh/uv/getting-started/installation/
 **Claude Code.** Symlink or copy the skill folders into `~/.claude/skills/` for every project, or into a project's `.claude/skills/` for that project alone.
 
 ```sh
-git clone https://github.com/AgrDataSci/climate-data.git
+git clone https://github.com/AgrDataSci/environment-data.git
 mkdir -p ~/.claude/skills
-ln -s "$PWD"/climate-data/skills/* ~/.claude/skills/
+ln -s "$PWD"/environment-data/skills/* ~/.claude/skills/
 ```
 
 **Codex and Gemini CLI.** Same, into `~/.agents/skills/` or `~/.gemini/skills/`.
@@ -68,7 +68,7 @@ ln -s "$PWD"/climate-data/skills/* ~/.claude/skills/
 ## Repository structure
 
 ```text
-climate-data/
+environment-data/
 ├── skills/          # One folder per skill: SKILL.md, scripts/, references/ where needed
 ├── tests/           # One smoke test per script
 ├── AGENTS.md        # Short instructions for AI agents

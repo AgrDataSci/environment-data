@@ -1,9 +1,9 @@
 cff-version: 1.2.0
 message: "If you use these skills, please cite them as below. Cite the data sources named in each skill for any value you use."
 type: software
-title: "Climate data for on-farm trials and breeding. AI agent skills for weather, elevation, boundaries and climate hazards at points"
+title: "Environment data for on-farm trials and breeding. AI agent skills for weather, elevation, soil, boundaries and climate hazards at points"
 abstract: >-
-  Agent skills that fetch daily weather (CHIRPS, CHIRTS, AgERA5), elevation,
+  Agent skills that fetch daily weather (CHIRPS, CHIRTS, AgERA5), elevation, soil,
   administrative boundaries and climate hazards for sets of points such as
   farms, trial sites and survey households, with the Python scripts behind
   them. Built for breeders and climate scientists working with tricot trials
@@ -19,9 +19,10 @@ authors:
     given-names: Kauê
     orcid: https://orcid.org/0000-0002-7571-7845
     affiliation: "Bioversity International"
-repository-code: https://github.com/AgrDataSci/climate-data
+repository-code: https://github.com/AgrDataSci/environment-data
 license: MIT
 keywords:
+  - environment data
   - climate data
   - CHIRPS
   - CHIRTS

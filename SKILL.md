@@ -1,9 +1,9 @@
 ---
-name: climate-data
-description: Index of the climate-data skills. Use when a user wants weather, climate, elevation, administrative boundaries or climate hazards for points such as farms, trial sites or survey households, to pick the right skill and chain them.
+name: environment-data
+description: Index of the environment-data skills. Use when a user wants weather, climate, elevation, soil, administrative boundaries or climate hazards for points such as farms, trial sites or survey households, to pick the right skill and chain them.
 ---
 
-# Climate data for points
+# Environment data for points
 
 Daily weather, elevation, boundaries and climate hazards for sets of points, as one skill per source. Every skill takes a CSV with `id`, `lat`, `lon` and writes parquet with one row per point and day, so outputs join on `id` and `date` and chain into `climate-hazards`.
 

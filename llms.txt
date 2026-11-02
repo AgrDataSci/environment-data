@@ -1,17 +1,17 @@
-# Climate data for on-farm trials and breeding
+# Environment data for on-farm trials and breeding
 
-> Daily weather, elevation, administrative boundaries and climate hazards for points such as farms, trial sites and survey households, as AI agent skills with the Python scripts behind them. Part of the AgrDataSci ai-ready-documentation suite.
+> Daily weather, elevation, soil, administrative boundaries and climate hazards for points such as farms, trial sites and survey households, as AI agent skills with the Python scripts behind them. Part of the AgrDataSci ai-ready-documentation suite.
 
 Read SKILL.md first. It says which skill answers which need and the rules they share.
 
 ## Core files
 
-- [SKILL.md](https://raw.githubusercontent.com/AgrDataSci/climate-data/main/SKILL.md): index of skills and shared rules
-- [AGENTS.md](https://raw.githubusercontent.com/AgrDataSci/climate-data/main/AGENTS.md): short instructions for AI agents
-- [README.md](https://raw.githubusercontent.com/AgrDataSci/climate-data/main/README.md): sources, install and licence
+- [SKILL.md](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/SKILL.md): index of skills and shared rules
+- [AGENTS.md](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/AGENTS.md): short instructions for AI agents
+- [README.md](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/README.md): sources, install and licence
 
 ## Skills
 
-- [chirps-rainfall](https://raw.githubusercontent.com/AgrDataSci/climate-data/main/skills/chirps-rainfall/SKILL.md): daily rainfall from CHIRPS v3
-- [chirts-temperature](https://raw.githubusercontent.com/AgrDataSci/climate-data/main/skills/chirts-temperature/SKILL.md): daily Tmax and Tmin from CHIRTS-ERA5
-- [elevation](https://raw.githubusercontent.com/AgrDataSci/climate-data/main/skills/elevation/SKILL.md): elevation from the Copernicus 90 m DEM
+- [chirps-rainfall](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/skills/chirps-rainfall/SKILL.md): daily rainfall from CHIRPS v3
+- [chirts-temperature](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/skills/chirts-temperature/SKILL.md): daily Tmax and Tmin from CHIRTS-ERA5
+- [elevation](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/skills/elevation/SKILL.md): elevation from the Copernicus 90 m DEM
