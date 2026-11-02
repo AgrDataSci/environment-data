@@ -15,3 +15,4 @@ Read SKILL.md first. It says which skill answers which need and the rules they s
 - [chirps-rainfall](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/skills/chirps-rainfall/SKILL.md): daily rainfall from CHIRPS v3
 - [chirts-temperature](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/skills/chirts-temperature/SKILL.md): daily Tmax and Tmin from CHIRTS-ERA5
 - [elevation](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/skills/elevation/SKILL.md): elevation from the Copernicus 90 m DEM
+- [agera5-climate](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/skills/agera5-climate/SKILL.md): daily radiation, humidity, wind, ET0 and VPD from AgERA5

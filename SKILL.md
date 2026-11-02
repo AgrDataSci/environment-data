@@ -13,7 +13,7 @@ Daily weather, elevation, boundaries and climate hazards for sets of points, as 
 |---|---|---|---|
 | Daily rainfall | `chirps-rainfall` | CHIRPS v3, 0.05°, 1981 to about a month ago | ready |
 | Daily Tmax and Tmin | `chirts-temperature` | CHIRTS-ERA5, 0.05°, 1981 to about a week ago | ready |
-| Radiation, humidity, wind, ET | `agera5-climate` | AgERA5, 0.1°, needs a free CDS key | planned |
+| Radiation, humidity, wind, ET | `agera5-climate` | AgERA5, 0.1°, needs a free CDS key | ready |
 | Elevation | `elevation` | Copernicus 90 m DEM | ready |
 | District and province | `admin-boundaries` | GAUL 2025 | planned |
 | Dry spells, hot days, heavy rain, GDD per season or stage | `climate-hazards` | any daily series | planned |
