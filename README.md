@@ -35,7 +35,7 @@ One folder per skill under `skills/`. Each has a `SKILL.md` an agent reads and a
 
 | Skill | What it does | Status |
 |---|---|---|
-| `chirps-rainfall` | Daily rainfall for points from CHIRPS v3 | planned |
+| `chirps-rainfall` | Daily rainfall for points from CHIRPS v3 | ready |
 | `chirts-temperature` | Daily Tmax and Tmin for points from CHIRTS-ERA5 | planned |
 | `agera5-climate` | Daily weather for points from AgERA5 | planned |
 | `elevation` | Elevation for points from the Copernicus 90 m DEM | planned |

@@ -9,3 +9,7 @@ Read SKILL.md first. It says which skill answers which need and the rules they s
 - [SKILL.md](https://raw.githubusercontent.com/AgrDataSci/climate-data/main/SKILL.md): index of skills and shared rules
 - [AGENTS.md](https://raw.githubusercontent.com/AgrDataSci/climate-data/main/AGENTS.md): short instructions for AI agents
 - [README.md](https://raw.githubusercontent.com/AgrDataSci/climate-data/main/README.md): sources, install and licence
+
+## Skills
+
+- [chirps-rainfall](https://raw.githubusercontent.com/AgrDataSci/climate-data/main/skills/chirps-rainfall/SKILL.md): daily rainfall from CHIRPS v3

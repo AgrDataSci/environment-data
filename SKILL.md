@@ -11,7 +11,7 @@ Daily weather, elevation, boundaries and climate hazards for sets of points, as 
 
 | Need | Skill | Source | Status |
 |---|---|---|---|
-| Daily rainfall | `chirps-rainfall` | CHIRPS v3, 0.05°, 1981 to about a month ago | planned |
+| Daily rainfall | `chirps-rainfall` | CHIRPS v3, 0.05°, 1981 to about a month ago | ready |
 | Daily Tmax and Tmin | `chirts-temperature` | CHIRTS-ERA5, 0.05°, 1981 to about a week ago | planned |
 | Radiation, humidity, wind, ET | `agera5-climate` | AgERA5, 0.1°, needs a free CDS key | planned |
 | Elevation | `elevation` | Copernicus 90 m DEM | planned |
