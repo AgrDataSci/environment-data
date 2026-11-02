@@ -13,3 +13,4 @@ Read SKILL.md first. It says which skill answers which need and the rules they s
 ## Skills
 
 - [chirps-rainfall](https://raw.githubusercontent.com/AgrDataSci/climate-data/main/skills/chirps-rainfall/SKILL.md): daily rainfall from CHIRPS v3
+- [chirts-temperature](https://raw.githubusercontent.com/AgrDataSci/climate-data/main/skills/chirts-temperature/SKILL.md): daily Tmax and Tmin from CHIRTS-ERA5
