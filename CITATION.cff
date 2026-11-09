@@ -1,13 +1,15 @@
 cff-version: 1.2.0
 message: "If you use these skills, please cite them as below. Cite the data sources named in each skill for any value you use."
 type: software
-title: "Environment data for on-farm trials and breeding. AI agent skills for weather, elevation, soil, boundaries and climate hazards at points"
+title: "Environment data for on-farm trials and breeding. AI-ready skills for weather, soil and elevation at any point"
 abstract: >-
-  Agent skills that fetch daily weather (CHIRPS, CHIRTS, AgERA5), elevation, soil,
-  administrative boundaries and climate hazards for sets of points such as
-  farms, trial sites and survey households, with the Python scripts behind
-  them. Built for breeders and climate scientists working with tricot trials
-  or on their own. Part of the AgrDataSci ai-ready-documentation suite.
+  AI agent skills that fetch daily weather (CHIRPS, CHIRTS, AgERA5),
+  elevation (Copernicus DEM) and soil properties (SoilGrids 2.0) for sets of
+  points such as farms, trial sites and survey households. Each skill comes
+  with the Python script behind it, so results can be reproduced without an
+  agent. Built for breeders and climate scientists, for use with tricot
+  trials or on their own. Part of maniva, the AgrDataSci open commons of
+  evidence, protocols, data and analysis for agricultural research.
 version: "0.1.0"
 date-released: 2026-11-02
 authors:
@@ -24,9 +26,13 @@ license: MIT
 keywords:
   - environment data
   - climate data
+  - soil data
   - CHIRPS
   - CHIRTS
+  - AgERA5
+  - SoilGrids
   - on-farm testing
   - plant breeding
   - AI-ready documentation
   - agent skills
+  - maniva

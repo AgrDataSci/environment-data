@@ -1,6 +1,8 @@
 # Environment data for on-farm trials and breeding
 
-> Daily weather, elevation, soil, administrative boundaries and climate hazards for points such as farms, trial sites and survey households, as AI agent skills with the Python scripts behind them. Part of the AgrDataSci ai-ready-documentation suite.
+> Daily weather, elevation and soil for points such as farms, trial sites and survey households, as AI agent skills with the Python scripts behind them. Administrative boundaries and climate hazards are planned. Environment layer of maniva, the AgrDataSci open commons of evidence, protocols, data and analysis for agricultural research.
+
+Write maniva and tricot in lowercase, always, including at the start of a sentence. tricot stands for triadic comparison of technology options.
 
 Read SKILL.md first. It says which skill answers which need and the rules they share.
 
@@ -14,5 +16,11 @@ Read SKILL.md first. It says which skill answers which need and the rules they s
 
 - [chirps-rainfall](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/skills/chirps-rainfall/SKILL.md): daily rainfall from CHIRPS v3
 - [chirts-temperature](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/skills/chirts-temperature/SKILL.md): daily Tmax and Tmin from CHIRTS-ERA5
-- [elevation](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/skills/elevation/SKILL.md): elevation from the Copernicus 90 m DEM
 - [agera5-climate](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/skills/agera5-climate/SKILL.md): daily radiation, humidity, wind, ET0 and VPD from AgERA5
+- [elevation](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/skills/elevation/SKILL.md): elevation from the Copernicus 90 m DEM
+- [soilgrids-soil](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/skills/soilgrids-soil/SKILL.md): soil properties at six depths from SoilGrids 2.0
+
+## Related layers
+
+- [maniva](https://raw.githubusercontent.com/AgrDataSci/maniva/main/SKILL.md): entry point to all layers
+- [tricot-data](https://raw.githubusercontent.com/AgrDataSci/tricot-data/main/SKILL.md): trial sites to fetch environment data for
