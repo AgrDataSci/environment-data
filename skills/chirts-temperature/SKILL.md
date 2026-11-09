@@ -1,6 +1,6 @@
 ---
 name: chirts-temperature
-description: Get daily maximum and minimum temperature (Tmax, Tmin) time series for points or farms on land between 60°S and 70°N, 1981 to about a week ago, from CHIRTS-ERA5 at 0.05° (~5 km). No API key needed. Use when a user wants temperature, heat or growing-degree-day inputs for trial sites, farms, coordinates or a dataset of locations, especially in the tropics. Pairs with chirps-rainfall. For humidity, radiation or wind, use agera5-climate.
+description: Fetch daily CHIRTS-ERA5 maximum and minimum temperature for land points between 60°S and 70°N from 1981 onward. Use for temperature time series or heat-analysis inputs; no API key needed.
 ---
 
 # CHIRTS-ERA5 daily temperature for points
@@ -9,17 +9,19 @@ CHIRTS (Climate Hazards Center InfraRed Temperature with Stations) estimates 2 m
 
 ## Run
 
-Put the points in a CSV with columns `id`, `lat`, `lon`, then
+Prepare a CSV with a unique, non-empty `id` per point and WGS84 decimal-degree `lat`, `lon` (longitude −180 to 180). Preserve identifiers, including leading zeros. Convert known missing-value sentinels to blank coordinates; do not guess corrections or move sites to obtain data. The script retains missing coordinates as NaN and rejects invalid ranges.
+
+Resolve `scripts/fetch.py` relative to this skill's directory, not the user's working directory. Use absolute paths for the script, input and output when working elsewhere. Example from the skill directory:
 
 ```sh
 uv run scripts/fetch.py points.csv temp.parquet --start 2020-01-01 --end 2025-12-31
 ```
 
-`--end` defaults to the latest day in the store. Needs only `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/)); it fetches Python and the packages on first run. Output is one row per point and day: `id`, `date`, `tmax_c`, `tmin_c`, `cell_lat`, `cell_lon`. Values above 60 °C are masked (a few source pixels hold impossible values). The script prints any point whose series is all NaN (sea, lake or off-grid); move it inland and rerun.
+`--start` is required; use the requested period, asking if it is unspecified. `--end` defaults to the latest day actually in the store. Explicit dates outside store coverage fail with the available range; do not silently shorten a requested period. Needs only `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/)); it fetches Python and the packages on first run. Output is one row per point and day: `id`, `date`, `tmax_c`, `tmin_c`, `cell_lat`, `cell_lon`. Values above 60 °C are masked (a few source pixels hold impossible values). The script prints any point whose series is all NaN (missing coordinates, outside coverage or source nodata). Report these IDs and leave their coordinates unchanged.
 
 ## Bandwidth
 
-Chunks are 128 days × 15° × 15°, one file each, so a point read fetches the whole 15° tile for that period. Measured for ten points in Rwanda, both variables: one year moved 110 MB, six years 500 MB. Points in the same tile share the cost, so a cluster of farms costs the same as one farm. On a slow link, fetch only the dates you need and expect minutes per year. This is the only public cloud copy of CHIRTS-ERA5, so there is no cheaper route.
+Chunks are 128 days × 15° × 15°, one file each, so a point read fetches the whole 15° tile for that period. Measured for ten points in Rwanda, both variables: one year moved 110 MB, six years 500 MB. Points in the same tile share the cost, so a cluster of farms costs the same as one farm. On a slow link, fetch only the dates you need and expect minutes per year. These are measurements from this store, not a guarantee for every region or connection.
 
 ## If you need to read the store yourself
 
@@ -37,13 +39,17 @@ ds = xr.open_zarr("https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/
 
 ## Caveats
 
-- CHIRTS-ERA5 is in the Climate Hazards Center's experimental tree, not the validated, station-blended CHIRTS-daily v1.0 (1983 to 2016 only). Don't mix the two. Reported error against stations is 1 to 2 °C mean absolute.
+- CHIRTS-ERA5 is in the Climate Hazards Center's experimental tree, not the validated, station-blended CHIRTS-daily v1.0 (1983 to 2016 only). Don't mix the two. Do not transfer validation claims from CHIRTS-daily to this reconstruction.
 - Values are satellite estimates, not station readings. Local extremes can differ from any single station.
 
 ## Combining with other sources
 
-For rainfall, pass the same points file and dates to `chirps-rainfall`; the nearest cell is the same in both, so join on `id` and `date`. For humidity, radiation, wind or ET use `agera5-climate` (0.1° grid, temperatures in K, local-time days); keep its units and join on `id` and `date`. For hot days, GDD or stage summaries, pass the daily parquet to `climate-hazards`. When a calling skill asked for daily inputs, return them without starting hazard analysis.
+For rainfall, pass the same points file and dates to `chirps-rainfall`; join on `id` and `date` and retain each source's selected cell coordinates. For humidity, radiation, wind or ET use `agera5-climate` (0.1° grid, local-time days; its script converts temperatures to °C); keep its units and join on `id` and `date`. The `climate-hazards` skill is planned and is not bundled here. Return daily data; compute summaries only when requested, using an available workflow with explicit definitions.
+
+## Deliver
+
+Return the output path, actual date range, units, source/store, grid resolution and missing-data counts per variable. Include retrieval date and any filtering (such as temperature screening). A successful fetch can still contain daily gaps; check completeness before totals or threshold counts.
 
 ## Cite
 
-Funk C et al. (2019). A high-resolution 1983–2016 Tmax climate data record based on infrared temperatures and stations. Journal of Climate 32, 5639–5658. https://doi.org/10.1175/JCLI-D-18-0698.1. Store: https://huggingface.co/datasets/aaguilar90/chirts-era5-daily
+Identify the actual product as CHIRTS-ERA5 and cite the [redistributed dataset](https://huggingface.co/datasets/aaguilar90/chirts-era5-daily) with its access date. Background method paper: Funk C et al. (2019). A high-resolution 1983–2016 Tmax climate data record based on infrared temperatures and stations. Journal of Climate 32, 5639–5658. https://doi.org/10.1175/JCLI-D-18-0698.1. Store: https://huggingface.co/datasets/aaguilar90/chirts-era5-daily

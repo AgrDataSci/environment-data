@@ -31,7 +31,19 @@ def tile_url(lat: float, lon: float) -> str:
     return TILE.format(t=t)
 
 
+def validate_points(points: pd.DataFrame) -> pd.DataFrame:
+    """Unique ids so outputs join cleanly; WGS84 ranges catch swapped or projected coordinates."""
+    points = points.reset_index(drop=True)
+    if points.id.isna().any() or points.id.duplicated().any():
+        raise ValueError("points need unique, non-empty ids")
+    for col, limit in (("lat", 90), ("lon", 180)):
+        if len(bad := points.id[points[col].abs() > limit]):
+            raise ValueError(f"{col} outside ±{limit} for ids {bad.tolist()}")
+    return points
+
+
 def fetch(points: pd.DataFrame) -> pd.DataFrame:
+    points = validate_points(points)
     out = np.full(len(points), np.nan)
     by_tile = defaultdict(list)
     for i, (lat, lon) in enumerate(zip(points.lat, points.lon)):
@@ -42,9 +54,11 @@ def fetch(points: pd.DataFrame) -> pd.DataFrame:
             try:
                 with rasterio.open(url) as dem:
                     xy = zip(points.lon.values[idx], points.lat.values[idx])
-                    out[idx] = [v[0] for v in dem.sample(xy)]
-            except RasterioIOError:  # no tile over open ocean
-                pass
+                    out[idx] = [v.filled(np.nan)[0] for v in dem.sample(xy, masked=True)]
+            except RasterioIOError as exc:
+                # A missing ocean tile is expected; a failed connection is not nodata.
+                if "404" not in str(exc):
+                    raise
     return pd.DataFrame({"id": points.id, "elevation_m": out.astype("float32")})
 
 
@@ -52,9 +66,9 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("points"), p.add_argument("out")
     a = p.parse_args()
-    out = fetch(pd.read_csv(a.points))
+    out = fetch(pd.read_csv(a.points, dtype={"id": str}))
     out.to_parquet(a.out, index=False)
     ok = out.elevation_m.notna()
     print(f"{ok.sum()} of {len(out)} points, {out.elevation_m.min():.0f} to {out.elevation_m.max():.0f} m -> {a.out}")
     if (~ok).any():
-        print(f"no elevation (open water or missing coordinates): {list(out.id[~ok])}")
+        print(f"no elevation (missing coordinates, missing tile or source nodata): {list(out.id[~ok])}")

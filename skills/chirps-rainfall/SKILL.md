@@ -1,6 +1,6 @@
 ---
 name: chirps-rainfall
-description: Get daily rainfall time series for points or farms on land between 60°S and 60°N, 1981 to about a month ago, from CHIRPS v3 at 0.05° (~5 km). No API key needed. Use when a user wants rainfall or precipitation data for trial sites, farms, coordinates or a dataset of locations, especially in the tropics. For temperature use chirts-temperature; for other weather variables, use agera5-climate.
+description: Fetch daily CHIRPS v3 rainfall for farms, trial sites or other land points between 60°S and 60°N from 1981 onward. Use for precipitation time series; no API key needed.
 ---
 
 # CHIRPS v3 daily rainfall for points
@@ -9,13 +9,15 @@ CHIRPS (Climate Hazards Group InfraRed Precipitation with Station data) blends s
 
 ## Run
 
-Put the points in a CSV with columns `id`, `lat`, `lon`, then
+Prepare a CSV with a unique, non-empty `id` per point and WGS84 decimal-degree `lat`, `lon` (longitude −180 to 180). Preserve identifiers, including leading zeros. Convert known missing-value sentinels to blank coordinates; do not guess corrections or move sites to obtain data. The script retains missing coordinates as NaN and rejects invalid ranges.
+
+Resolve `scripts/fetch.py` relative to this skill's directory, not the user's working directory. Use absolute paths for the script, input and output when working elsewhere. Example from the skill directory:
 
 ```sh
 uv run scripts/fetch.py points.csv rain.parquet --start 2020-01-01 --end 2025-12-31
 ```
 
-`--end` defaults to the latest day in the store. Needs only `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/)); it fetches Python and the packages on first run. Output is one row per point and day: `id`, `date`, `precip_mm`, `cell_lat`, `cell_lon`. The script prints any point whose series is all NaN (sea or off-grid); move it inland and rerun.
+`--start` is required; use the requested period, asking if it is unspecified. `--end` defaults to the latest day actually in the store. Explicit dates outside store coverage fail with the available range; do not silently shorten a requested period. Needs only `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/)); it fetches Python and the packages on first run. Output is one row per point and day: `id`, `date`, `precip_mm`, `cell_lat`, `cell_lon`. The script prints any point whose series is all NaN (missing coordinates, outside coverage or source nodata). Report these IDs and leave their coordinates unchanged.
 
 ## If you need to read the store yourself
 
@@ -35,8 +37,12 @@ For a regional map rather than points, the Hugging Face copy `aaguilar90/chirps-
 
 ## Combining with other sources
 
-For Tmax and Tmin, pass the same points file and dates to `chirts-temperature`; both share the 0.05° grid, so join on `id` and `date`. For radiation, humidity, wind or ET use `agera5-climate` (0.1° grid, local-time days); join on `id` and `date`, not cell coordinates. For season totals, dry spells or stage summaries, pass the daily parquet to `climate-hazards`. When a calling skill asked for daily inputs, return them without starting hazard analysis.
+For Tmax and Tmin, pass the same points file and dates to `chirts-temperature`; both have 0.05° resolution; join on `id` and `date` and retain each source's selected cell coordinates. For radiation, humidity, wind or ET use `agera5-climate` (0.1° grid, local-time days); join on `id` and `date`, not cell coordinates. The `climate-hazards` skill is planned and is not bundled here. Return daily data; compute summaries only when requested, using an available workflow with explicit definitions.
+
+## Deliver
+
+Return the output path, actual date range, units, source/store, grid resolution and missing-data counts per variable. Include retrieval date and any filtering. A successful fetch can still contain daily gaps; check completeness before totals or threshold counts.
 
 ## Cite
 
-Funk C et al. (2015). The climate hazards infrared precipitation with stations. Scientific Data 2, 150066. https://doi.org/10.1038/sdata.2015.66. Store: dynamical.org, https://dynamical.org/catalog/ucsb-chc-chirps-analysis-final/
+Use the CHIRPS **v3** attribution in the [store catalogue](https://dynamical.org/catalog/ucsb-chc-chirps-analysis-final/): Funk C et al. (2026), The Climate Hazards Center Infrared Precipitation with Stations, Version 3, Scientific Data 13, 718. Data DOI: https://doi.org/10.15780/G2JQ0P. Credit the dynamical.org redistribution (CC BY 4.0). The 2015 CHIRPS paper describes the earlier product.

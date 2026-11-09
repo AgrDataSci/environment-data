@@ -1,21 +1,23 @@
 ---
 name: agera5-climate
-description: Get daily solar radiation, humidity, wind, reference evapotranspiration and vapour pressure deficit for points or farms anywhere on land, 1979 to about a week ago, from AgERA5 at 0.1° (~10 km). Needs a free Copernicus CDS key. Use when a user needs weather variables beyond rainfall and temperature, for disease pressure, water balance or crop models. For rainfall use chirps-rainfall and for temperature chirts-temperature, both finer and key-free.
+description: Fetch daily AgERA5 radiation, humidity, wind, reference evapotranspiration and other weather variables for land points from 1979 onward. Use for crop-model or water-balance inputs; requires a Copernicus CDS key.
 ---
 
 # AgERA5 daily weather for points
 
-AgERA5 is ECMWF's ERA5 reanalysis corrected for agriculture: daily, 0.1° (~10 km), 1979 to about a week ago, with agronomic variables such as FAO56 reference evapotranspiration already computed. ECMWF serves it as one analysis-ready Zarr cube, so you read only the cells and dates you need. It needs a free Copernicus key.
+AgERA5 is ECMWF's ERA5 reanalysis corrected for agriculture: daily, 0.1° (~10 km), 1979 onward (check the store for the latest date), with agronomic variables such as FAO56 reference evapotranspiration already computed. ECMWF serves it as one analysis-ready Zarr cube, so you read only the cells and dates you need. It needs a free Copernicus key.
 
 ## Run
 
-Put the points in a CSV with columns `id`, `lat`, `lon`, then
+Prepare a CSV with a unique, non-empty `id` per point and WGS84 decimal-degree `lat`, `lon` (longitude −180 to 180). Preserve identifiers, including leading zeros. Convert known missing-value sentinels to blank coordinates; do not guess corrections or move sites to obtain data. The script retains missing coordinates as NaN and rejects invalid ranges.
+
+Resolve `scripts/fetch.py` relative to this skill's directory, not the user's working directory. Use absolute paths for the script, input and output when working elsewhere. Example from the skill directory:
 
 ```sh
 uv run scripts/fetch.py points.csv weather.parquet --start 2020-01-01 --end 2025-12-31
 ```
 
-`--end` defaults to the latest day in the store. Needs only `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/)) and a key (below). Output is one row per point and day: `id`, `date`, the variables, `cell_lat`, `cell_lon`. The script prints any point whose series is all NaN (sea or lake).
+`--start` is required; use the requested period, asking if it is unspecified. `--end` defaults to the latest day actually in the store. Explicit dates outside store coverage fail with the available range; do not silently shorten a requested period. Needs only `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/)) and a key (below). Output is one row per point and day: `id`, `date`, the variables, `cell_lat`, `cell_lon`. The script prints any point whose series is all NaN (missing coordinates, outside coverage or source nodata). Report these IDs without moving the points.
 
 Default variables are the ones CHIRPS and CHIRTS don't have. Pick others with `--vars`:
 
@@ -29,7 +31,7 @@ Default variables are the ones CHIRPS and CHIRTS don't have. Pick others with `-
 | `tmax`, `tmin`, `tmean` | air temperature at 2 m | °C |
 | `precip` | rainfall | mm d⁻¹ |
 
-Use `tmax`, `tmin` and `precip` only outside CHIRPS and CHIRTS coverage (above 60°N or below 60°S) or when one source for everything matters more than resolution.
+Use `tmax`, `tmin` and `precip` when the user requests AgERA5, needs consistent variables from one source, or is outside the other sources' coverage: CHIRPS is 60°S–60°N; CHIRTS is 60°S–70°N.
 
 ## Key
 
@@ -59,13 +61,17 @@ ds = xr.open_zarr("https://arco.datastores.ecmwf.int/cadl-arco-geo-001/arco/sis_
 
 ## Caveats
 
-- A reanalysis, not observations. Rainfall in particular is poor in the tropics, which is why `chirps-rainfall` is the default for it.
+- A reanalysis, not station observations. Evaluate suitability for the region and purpose; higher spatial resolution alone does not establish accuracy.
 - 0.1° cells smooth mountain terrain. Humidity and radiation in the East African highlands vary within a cell.
-- Days are local time where CHIRPS and CHIRTS use UTC. Join on `id` and `date` and accept the offset.
+- AgERA5 days use local time ([CDS documentation](https://cds.climate.copernicus.eu/datasets/sis-agrometeorological-indicators?tab=overview)). Check the other source's day definition before joining on `id` and `date`; matching date labels do not guarantee matching 24-hour windows. Disclose any mismatch, especially for event comparisons.
 
 ## Combining with other sources
 
-Pass the same points file and dates to `chirps-rainfall` and `chirts-temperature` and join on `id` and `date`, not cell coordinates (different grids). For hazards or stage summaries, pass the daily parquet to `climate-hazards`. When a calling skill asked for daily inputs, return them without starting hazard analysis.
+Pass the same points file and dates to `chirps-rainfall` and `chirts-temperature` and join on `id` and `date`, not cell coordinates (different grids). The `climate-hazards` skill is planned and is not bundled here. Return daily data; compute summaries only when requested, using an available workflow with explicit definitions.
+
+## Deliver
+
+Return the output path, actual date range, units, source/store, grid resolution and missing-data counts per variable. Include retrieval date and any filtering. A successful fetch can still contain daily gaps; check completeness before totals or threshold counts.
 
 ## Cite
 
