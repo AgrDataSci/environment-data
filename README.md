@@ -53,13 +53,12 @@ One folder per skill under `skills/`. Each has a `SKILL.md` an agent reads and a
 
 Scripts need only [`uv`](https://docs.astral.sh/uv/getting-started/installation/), which fetches Python and the packages on first run.
 
-This repository is currently local; replace `/path/to/environment-data` below with its actual path.
-
 **Claude Code.** Symlink or copy the skill folders into `~/.claude/skills/` for every project, or into a project's `.claude/skills/` for that project alone.
 
 ```sh
+git clone https://github.com/AgrDataSci/environment-data.git
 mkdir -p ~/.claude/skills
-ln -s /path/to/environment-data/skills/* ~/.claude/skills/
+ln -s "$PWD"/environment-data/skills/* ~/.claude/skills/
 ```
 
 **Codex and Gemini CLI.** Same, into `~/.agents/skills/` or `~/.gemini/skills/`.
