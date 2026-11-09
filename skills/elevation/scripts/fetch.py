@@ -6,7 +6,7 @@
 
     uv run fetch.py points.csv elevation.parquet
 
-points.csv needs columns id, lat, lon."""
+points.csv needs columns id, lat, lon. Writes CSV if out ends in .csv, else parquet."""
 
 import argparse
 import math
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     p.add_argument("points"), p.add_argument("out")
     a = p.parse_args()
     out = fetch(pd.read_csv(a.points, dtype={"id": str}))
-    out.to_parquet(a.out, index=False)
+    out.to_csv(a.out, index=False) if a.out.endswith(".csv") else out.to_parquet(a.out, index=False, compression="zstd")
     ok = out.elevation_m.notna()
     print(f"{ok.sum()} of {len(out)} points, {out.elevation_m.min():.0f} to {out.elevation_m.max():.0f} m -> {a.out}")
     if (~ok).any():

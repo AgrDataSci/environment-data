@@ -6,7 +6,7 @@
 
     uv run fetch.py points.csv weather.parquet --start 2020-01-01 [--end 2025-12-31] [--vars srad,rhmax,rhmin,wind,et0,vpd]
 
-points.csv needs columns id, lat, lon. Needs a Copernicus CDS key in CDSAPI_KEY or ~/.cdsapirc.
+points.csv needs columns id, lat, lon. Writes CSV if out ends in .csv, else parquet. Needs a Copernicus CDS key in CDSAPI_KEY or ~/.cdsapirc.
 Default variables are the ones CHIRPS and CHIRTS do not have; the rest are available by name."""
 
 import argparse
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     a = p.parse_args()
     names = a.vars.split(",")
     out = fetch(pd.read_csv(a.points, dtype={"id": str}), a.start, a.end, names)
-    out.to_parquet(a.out, index=False, compression="zstd")
+    out.to_csv(a.out, index=False) if a.out.endswith(".csv") else out.to_parquet(a.out, index=False, compression="zstd")
     print(f"{out.id.nunique()} points, {out.date.min()} to {out.date.max()}, {len(out):,} rows, {names} -> {a.out}")
     miss = out[names].isna().all(axis=1).groupby(out.id).all()
     if miss.any():

@@ -6,7 +6,7 @@
 
     uv run fetch.py points.csv out.parquet --start 2020-01-01 [--end 2025-12-31]
 
-points.csv needs columns id, lat, lon. end defaults to the latest day in the store."""
+points.csv needs columns id, lat, lon. Writes CSV if out ends in .csv, else parquet. end defaults to the latest day in the store."""
 
 import argparse
 import dask
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     p.add_argument("points"), p.add_argument("out"), p.add_argument("--start", required=True), p.add_argument("--end")
     a = p.parse_args()
     out = fetch(pd.read_csv(a.points, dtype={"id": str}), a.start, a.end)
-    out.to_parquet(a.out, index=False, compression="zstd")
+    out.to_csv(a.out, index=False) if a.out.endswith(".csv") else out.to_parquet(a.out, index=False, compression="zstd")
     sea = out[["tmax_c", "tmin_c"]].isna().all(axis=1).groupby(out.id).all()
     print(f"{out.id.nunique()} points, {out.date.min()} to {out.date.max()}, {len(out):,} rows -> {a.out}")
     if sea.any():

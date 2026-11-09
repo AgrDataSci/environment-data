@@ -26,7 +26,7 @@ Write maniva and tricot in lowercase, always. That holds in headings, table cell
 
 ## Three ways to use a skill
 
-1. **Run the script.** Resolve `scripts/fetch.py` from the selected skill directory and follow its CLI example (weather also requires `--start`). Use this by default.
+1. **Run the script.** Resolve `scripts/fetch.py` from the selected skill directory and follow its CLI example (weather also requires `--start`). Use this by default. Output is parquet; name the output `.csv` for CSV, which suits elevation, soil and small weather pulls (daily weather for many points gets large).
 2. **Import the script module.** Its `fetch()` takes a pandas data frame with `id`, `lat`, `lon` and returns a data frame. Use it inside a larger Python pipeline.
 3. **Write your own reader.** Each skill's "If you need to read ... yourself" section gives the store path and the traps (units, scaling, projection, grid order). Use it for R, other tools or needs the script does not cover.
 
@@ -49,4 +49,4 @@ Draw every map in the Equal Earth projection (EPSG:8857), the equal-area world m
 
 ## R users
 
-The skills are Python. Outputs are parquet, which R reads with `arrow`. The R route to the same sources is the `chirps` and `climatrends` packages by Kauê de Sousa.
+The skills are Python. Run the script, then read the parquet output in R with `nanoparquet::read_parquet()` (small, no dependencies) or `arrow::read_parquet()`.

@@ -25,8 +25,6 @@ This is the environment layer of [maniva](https://github.com/AgrDataSci/maniva),
 | AgERA5 | Daily temperature, rainfall, radiation, humidity, wind, reference ET, 1979 onward; latest date depends on store | 0.1° | free Copernicus CDS key |
 | Copernicus DEM | Elevation | 90 m | public, no key |
 | SoilGrids 2.0 | Soil texture, carbon, nitrogen, pH, CEC, bulk density at six depths | 250 m | public, no key |
-| GAUL 2025 | District and province boundaries | vector | public, no key |
-| World Bank CCKP | Precomputed CMIP6 hazard indices, 2020 to 2099 | 0.25° | public, no key |
 
 Each source keeps its own licence and terms of use.
 
@@ -34,7 +32,7 @@ Each source keeps its own licence and terms of use.
 
 ## Skills
 
-One folder per skill under `skills/`. Each has a `SKILL.md` an agent reads and a `scripts/fetch.py` it runs. Every script takes points as a CSV with `id`, `lat`, `lon` and writes parquet, one row per point and day for weather and one row per point for elevation and soil, so weather outputs join on `id` and `date`, and elevation/soil outputs join on `id`. An agent builds that CSV from whatever form the user's points come in. Each script's `fetch()` function also works inside a Python pipeline, and each `SKILL.md` documents the source well enough to write your own reader, e.g. in R.
+One folder per skill under `skills/`. Each has a `SKILL.md` an agent reads and a `scripts/fetch.py` it runs. Every script takes points as a CSV with `id`, `lat`, `lon` and writes parquet (or CSV if the output name ends in `.csv`), one row per point and day for weather and one row per point for elevation and soil, so weather outputs join on `id` and `date`, and elevation/soil outputs join on `id`. An agent builds that CSV from whatever form the user's points come in. Each script's `fetch()` function also works inside a Python pipeline, and each `SKILL.md` documents the source well enough to write your own reader, e.g. in R.
 
 | Skill | What it does | Status |
 |---|---|---|
@@ -65,7 +63,7 @@ ln -s "$PWD"/environment-data/skills/* ~/.claude/skills/
 
 **Without an agent.** Run any script directly, e.g. `uv run skills/chirps-rainfall/scripts/fetch.py points.csv rain.parquet --start 2020-01-01`.
 
-**R users.** Outputs are parquet, which `arrow` reads. The R route to the same sources is the [chirps](https://github.com/AgrDataSci/chirps) and [climatrends](https://github.com/AgrDataSci/climatrends) packages.
+**R users.** Run the scripts as above, then read the parquet outputs in R with `nanoparquet::read_parquet()`, a small package with no dependencies, or `arrow::read_parquet()` if you already use arrow.
 
 ---
 

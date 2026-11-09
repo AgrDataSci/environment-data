@@ -6,7 +6,7 @@
 
     uv run fetch.py points.csv soil.parquet [--props clay,sand,soc] [--depths 0-5cm,5-15cm] [--stat mean]
 
-points.csv needs columns id, lat, lon. Values are in conventional units (see SKILL.md)."""
+points.csv needs columns id, lat, lon. Writes CSV if out ends in .csv, else parquet. Values are in conventional units (see SKILL.md)."""
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     p.add_argument("--stat", default="mean", choices=STATS)
     a = p.parse_args()
     out = fetch(pd.read_csv(a.points, dtype={"id": str}), a.props.split(","), a.depths.split(","), a.stat)
-    out.to_parquet(a.out, index=False)
+    out.to_csv(a.out, index=False) if a.out.endswith(".csv") else out.to_parquet(a.out, index=False, compression="zstd")
     empty = out.drop(columns="id").isna().all(axis=1)
     print(f"{len(out)} points, {out.shape[1] - 1} layers ({a.stat}) -> {a.out}")
     if empty.any():
