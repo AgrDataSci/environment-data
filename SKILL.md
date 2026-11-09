@@ -19,7 +19,7 @@ Write maniva and tricot in lowercase, always. That holds in headings, table cell
 | Daily Tmax and Tmin | [chirts-temperature](skills/chirts-temperature/SKILL.md) | CHIRTS-ERA5, 0.05°, 1981 onward; check store end date | ready |
 | Radiation, humidity, wind, ET | [agera5-climate](skills/agera5-climate/SKILL.md) | AgERA5, 0.1°, needs a free CDS key | ready |
 | Elevation | [elevation](skills/elevation/SKILL.md) | Copernicus 90 m DEM | ready |
-| Soil texture, carbon, nitrogen, pH, CEC, bulk density | [soilgrids-soil](skills/soilgrids-soil/SKILL.md) | SoilGrids 2.0, 250 m, six depths | ready |
+| Soil texture, carbon, nitrogen, pH, CEC, bulk density | [soilgrids-soil](skills/soilgrids-soil/SKILL.md) | SoilGrids 2.0, 250 m or 1 km mean, six depths | ready |
 | District and province | `admin-boundaries` | GAUL 2025 | planned |
 | Dry spells, hot days, heavy rain, GDD per season or stage | `climate-hazards` | any daily series | planned |
 | How those hazards shift to 2099 | `future-climate` | World Bank CCKP, CMIP6 | planned |

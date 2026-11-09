@@ -24,7 +24,7 @@ This is the environment layer of [maniva](https://github.com/AgrDataSci/maniva),
 | CHIRTS-ERA5 | Daily Tmax and Tmin, 1981 onward; latest date depends on store, 60°S to 70°N | 0.05° | public, no key |
 | AgERA5 | Daily temperature, rainfall, radiation, humidity, wind, reference ET, 1979 onward; latest date depends on store | 0.1° | free Copernicus CDS key |
 | Copernicus DEM | Elevation | 90 m | public, no key |
-| SoilGrids 2.0 | Soil texture, carbon, nitrogen, pH, CEC, bulk density at six depths | 250 m | public, no key |
+| SoilGrids 2.0 | Soil texture, carbon, nitrogen, pH, CEC, bulk density at six depths | 250 m, or 1 km mean | public, no key |
 
 Each source keeps its own licence and terms of use.
 
