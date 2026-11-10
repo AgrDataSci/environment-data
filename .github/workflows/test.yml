@@ -1,0 +1,35 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 5 * * 1" # Mondays, to catch a data store that moved or changed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Unit tests on synthetic stores
+        run: >
+          uv run --no-project --python 3.12 --with pytest --with xarray --with "zarr>=3" --with icechunk --with dask
+          --with fsspec --with aiohttp --with pandas --with pyarrow --with rasterio --with numpy pytest tests
+
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Hosts the skills need
+        run: python3 scripts/check.py
+      - name: Two points from every store
+        run: python3 tests/smoke.py
+        env:
+          CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
