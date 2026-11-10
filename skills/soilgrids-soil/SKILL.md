@@ -25,6 +25,8 @@ Expect about 20 to 30 s for 1,000 points and the default 27 layers. Each layer c
 
 Use `--res 1000` when point locations are uncertain by more than a few hundred metres, such as tricot sites, which are displaced up to 1.5 km for privacy. A 1 km average then describes the area the farm is in better than one 250 m cell. It has the mean only, so prediction intervals stay at 250 m.
 
+The script needs `pypi.org` and `files.pythonhosted.org` on first run and `files.isric.org` for the data. If it reports a host it cannot reach, the network is blocked, not the data missing: say so, name the host, and give the user the command to run on an open network. Do not switch source or estimate values.
+
 ## Properties and units
 
 Values are converted from SoilGrids' stored integers to the units below.

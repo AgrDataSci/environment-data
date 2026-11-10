@@ -11,6 +11,7 @@ Read SKILL.md first. It says which skill answers which need and the rules they s
 - [SKILL.md](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/SKILL.md): index of skills and shared rules
 - [AGENTS.md](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/AGENTS.md): short instructions for AI agents
 - [README.md](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/README.md): sources, install and licence
+- [scripts/check.py](https://raw.githubusercontent.com/AgrDataSci/environment-data/main/scripts/check.py): tests whether this network reaches the data stores; standard library only
 
 ## Skills
 

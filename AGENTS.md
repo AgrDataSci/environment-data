@@ -4,7 +4,7 @@ This repository holds skills that fetch weather, elevation and soil data for poi
 
 1. Read `SKILL.md` first. It says which skill answers which need and the rules every skill shares.
 2. Open only the skill folder the question needs, under `skills/`. Each `SKILL.md` is self-contained and its `scripts/` file does the fetch.
-3. Run scripts with `uv run`. Do not install anything else without the user's agreement.
+3. Run scripts with `uv run`. Do not install anything else without the user's agreement. If a script cannot reach its data store, or `uv` cannot install packages, follow "Network" in `SKILL.md`: run `python3 scripts/check.py`, name the blocked hosts, and hand the user the exact command. Never estimate values or switch source.
 4. Keep the data's caveats with the data. Say which source, grid and dates a result came from.
 5. Never invent a DOI, licence or date. Each skill ends with what to cite.
 6. Write maniva and tricot in lowercase, always, including headings, table cells and the start of a sentence. Never write "Maniva" or "Tricot". tricot stands for triadic comparison of technology options. Quote published titles exactly as printed, even where they capitalise tricot or expand it as "triadic comparisons of technologies".
