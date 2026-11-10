@@ -61,9 +61,25 @@ ln -s "$PWD"/environment-data/skills/* ~/.claude/skills/
 
 **Codex and Gemini CLI.** Same, into `~/.agents/skills/` or `~/.gemini/skills/`.
 
-**Without an agent.** Run any script directly, e.g. `uv run skills/chirps-rainfall/scripts/fetch.py points.csv rain.parquet --start 2020-01-01`.
+**Without an agent.** Run any script directly, e.g. `uv run skills/chirps-rainfall/scripts/fetch.py points.csv rain.parquet --start 2020-01-01`. When each point has its own date, such as a planting date, fetch a window per point: `--date-col planting_date --days 100`.
 
 **R users.** Run the scripts as above, then read the parquet outputs in R with `nanoparquet::read_parquet()`, a small package with no dependencies, or `arrow::read_parquet()` if you already use arrow.
+
+---
+
+## Network
+
+The scripts read remote stores and `uv` installs their packages on first run. Sandboxed agents, such as a cloud chat session, and some institutional networks block those hosts. `python3 scripts/check.py` lists what is blocked, using the standard library only. The hosts are in [SKILL.md](SKILL.md#network), with what an agent does when they are out of reach.
+
+## Tests
+
+```sh
+uv run --no-project --with pytest --with xarray --with "zarr>=3" --with icechunk --with dask --with fsspec \
+  --with aiohttp --with pandas --with pyarrow --with rasterio --with numpy pytest tests   # offline, synthetic stores
+python3 tests/smoke.py                                                                    # two points from every live store
+```
+
+Both run on every pull request, and the live test runs every Monday to catch a store that moved.
 
 ---
 

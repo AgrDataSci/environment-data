@@ -15,9 +15,10 @@ Resolve `scripts/fetch.py` relative to this skill's directory, not the user's wo
 
 ```sh
 uv run scripts/fetch.py points.csv weather.parquet --start 2020-01-01 --end 2025-12-31
+uv run scripts/fetch.py points.csv weather.parquet --date-col planting_date --days 100
 ```
 
-`--start` is required; use the requested period, asking if it is unspecified. `--end` defaults to the latest day actually in the store. Explicit dates outside store coverage fail with the available range; do not silently shorten a requested period. Needs only `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/)) and a key (below). Output is one row per point and day: `id`, `date`, the variables, `cell_lat`, `cell_lon`. The script prints any point whose series is all NaN (missing coordinates, outside coverage or source nodata). Report these IDs without moving the points.
+Give one period for all points with `--start`, or a window per point with `--date-col` and `--days`: each point is fetched from the date in that column (day 0) to `--days` later, and the output gains a `day` column counting from 0. Use the per-point form when points have their own dates, such as planting dates; it reads only the dates each point needs. A point with a blank date gets no rows and is listed. Use the requested period, asking if it is unspecified. `--end` defaults to the latest day actually in the store. Explicit dates outside store coverage fail with the available range; do not silently shorten a requested period. Needs only `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/)) and a key (below). Output is one row per point and day: `id`, `date`, the variables, `cell_lat`, `cell_lon`. The script prints any point whose series is all NaN (missing coordinates, outside coverage or source nodata). Report these IDs without moving the points.
 
 Default variables are the ones CHIRPS and CHIRTS don't have. Pick others with `--vars`:
 
@@ -45,6 +46,8 @@ The script looks for `CDSAPI_KEY` in the environment, then the `key:` line of `~
    url: https://cds.climate.copernicus.eu/api
    key: <token>
    ```
+
+The script needs `pypi.org` and `files.pythonhosted.org` on first run and `arco.datastores.ecmwf.int` for the data. If it reports a host it cannot reach, the network is blocked, not the data missing: say so, name the host, and give the user the command to run on an open network. Do not switch source or estimate values.
 
 ## If you need to read the store yourself
 

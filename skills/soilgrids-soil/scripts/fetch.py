@@ -9,6 +9,8 @@
 points.csv needs columns id, lat, lon. Writes CSV if out ends in .csv, else parquet. Values are in conventional units (see SKILL.md)."""
 
 import argparse
+import urllib.error
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -29,6 +31,21 @@ STATS = ["mean", "Q0.05", "Q0.5", "Q0.95"]
 DEFAULT_PROPS = "clay,sand,silt,soc,nitrogen,phh2o,cec,bdod,cfvo"
 DEFAULT_DEPTHS = "0-5cm,5-15cm,15-30cm"
 GDAL = dict(GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR", GDAL_HTTP_MAX_RETRY=3, GDAL_HTTP_RETRY_DELAY=2)
+HOSTS = ["files.isric.org"]  # what a firewall must allow
+
+
+def reachable(hosts: list[str]) -> None:
+    """Fail early and name the host when a firewall or sandbox blocks the store. Any HTTP answer counts as reachable."""
+    for host in hosts:
+        try:
+            urllib.request.urlopen(urllib.request.Request(f"https://{host}/", method="HEAD"), timeout=20)
+        except urllib.error.HTTPError:
+            pass  # the host answered
+        except OSError as exc:
+            raise ConnectionError(
+                f"cannot reach {host} ({exc}). This is a network block, not missing data. Allow {', '.join(hosts)} "
+                "or run the same command on a machine with open internet. See 'Network' in the repository SKILL.md."
+            ) from None
 
 
 def layer(prop: str, depth: str, stat: str, res: int, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
@@ -45,7 +62,10 @@ def layer(prop: str, depth: str, stat: str, res: int, lat: np.ndarray, lon: np.n
 
 def validate_points(points: pd.DataFrame) -> pd.DataFrame:
     """Unique ids so outputs join cleanly; WGS84 ranges catch swapped or projected coordinates."""
+    if missing := {"id", "lat", "lon"} - set(points.columns):
+        raise ValueError(f"points need columns id, lat, lon; missing {sorted(missing)}")
     points = points.reset_index(drop=True)
+    points = points.assign(lat=pd.to_numeric(points.lat), lon=pd.to_numeric(points.lon))
     if points.id.isna().any() or points.id.duplicated().any():
         raise ValueError("points need unique, non-empty ids")
     for col, limit in (("lat", 90), ("lon", 180)):
@@ -60,6 +80,7 @@ def fetch(points: pd.DataFrame, props: list[str], depths: list[str], stat: str =
         raise ValueError(f"unknown {sorted(bad)}; properties {', '.join(FACTOR)}; depths {', '.join(DEPTHS)}; stats {', '.join(STATS)}")
     if res not in URL or (res == 1000 and stat != "mean"):
         raise ValueError("res is 250 or 1000, and 1000 has the mean only")
+    reachable(HOSTS)
     # ocs (carbon stock) exists only for 0-30cm
     jobs = [(p, "0-30cm" if p == "ocs" else d) for p in props for d in depths]
     jobs = list(dict.fromkeys(jobs))
