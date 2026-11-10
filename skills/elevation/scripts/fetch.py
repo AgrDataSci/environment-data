@@ -10,6 +10,8 @@ points.csv needs columns id, lat, lon. Writes CSV if out ends in .csv, else parq
 
 import argparse
 import math
+import urllib.error
+import urllib.request
 from collections import defaultdict
 
 import numpy as np
@@ -22,6 +24,21 @@ TILE = (
     "https://copernicus-dem-90m.s3.amazonaws.com/"
     "Copernicus_DSM_COG_30_{t}_DEM/Copernicus_DSM_COG_30_{t}_DEM.tif"
 )
+HOSTS = ["copernicus-dem-90m.s3.amazonaws.com"]  # what a firewall must allow
+
+
+def reachable(hosts: list[str]) -> None:
+    """Fail early and name the host when a firewall or sandbox blocks the store. Any HTTP answer counts as reachable."""
+    for host in hosts:
+        try:
+            urllib.request.urlopen(urllib.request.Request(f"https://{host}/", method="HEAD"), timeout=20)
+        except urllib.error.HTTPError:
+            pass  # the host answered
+        except OSError as exc:
+            raise ConnectionError(
+                f"cannot reach {host} ({exc}). This is a network block, not missing data. Allow {', '.join(hosts)} "
+                "or run the same command on a machine with open internet. See 'Network' in the repository SKILL.md."
+            ) from None
 
 
 def tile_url(lat: float, lon: float) -> str:
@@ -33,7 +50,10 @@ def tile_url(lat: float, lon: float) -> str:
 
 def validate_points(points: pd.DataFrame) -> pd.DataFrame:
     """Unique ids so outputs join cleanly; WGS84 ranges catch swapped or projected coordinates."""
+    if missing := {"id", "lat", "lon"} - set(points.columns):
+        raise ValueError(f"points need columns id, lat, lon; missing {sorted(missing)}")
     points = points.reset_index(drop=True)
+    points = points.assign(lat=pd.to_numeric(points.lat), lon=pd.to_numeric(points.lon))
     if points.id.isna().any() or points.id.duplicated().any():
         raise ValueError("points need unique, non-empty ids")
     for col, limit in (("lat", 90), ("lon", 180)):
@@ -44,6 +64,7 @@ def validate_points(points: pd.DataFrame) -> pd.DataFrame:
 
 def fetch(points: pd.DataFrame) -> pd.DataFrame:
     points = validate_points(points)
+    reachable(HOSTS)
     out = np.full(len(points), np.nan)
     by_tile = defaultdict(list)
     for i, (lat, lon) in enumerate(zip(points.lat, points.lon)):
