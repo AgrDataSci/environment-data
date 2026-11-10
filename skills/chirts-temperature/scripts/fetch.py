@@ -49,7 +49,7 @@ def select_daily(ds, points, start, end, lat, lon):
 
 def fetch(points: pd.DataFrame, start: str, end: str | None = None) -> pd.DataFrame:
     points = validate_points(points)
-    ds = xr.open_zarr(STORE, consolidated=True, chunks={})
+    ds = xr.open_zarr(STORE, consolidated=True, chunks={}, storage_options={"client_kwargs": {"trust_env": True}})  # honour HTTPS_PROXY, which sandboxes use
     sub = select_daily(ds[["Tmax", "Tmin"]], points, start, end, "lat", "lon")
     sub = sub.where(sub <= TMAX_OK)
     df = sub.to_dataframe().reset_index().rename(columns={"Tmax": "tmax_c", "Tmin": "tmin_c", "lat": "cell_lat", "lon": "cell_lon"})

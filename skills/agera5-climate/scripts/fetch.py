@@ -81,7 +81,7 @@ def fetch(points: pd.DataFrame, start: str, end: str | None = None, names: list[
     names = DEFAULT.split(",") if names is None else names
     if bad := set(names) - set(VARS):
         raise ValueError(f"unknown variables {sorted(bad)}; choose from {', '.join(VARS)}")
-    ds = xr.open_zarr(STORE, consolidated=True, chunks={}, storage_options={"headers": {"Authorization": f"Bearer {cds_key()}"}})
+    ds = xr.open_zarr(STORE, consolidated=True, chunks={}, storage_options={"headers": {"Authorization": f"Bearer {cds_key()}"}, "client_kwargs": {"trust_env": True}})  # trust_env: honour HTTPS_PROXY
     store_vars = [VARS[n][0] for n in names]
     sub = select_daily(ds[store_vars], points, start, end, "latitude", "longitude")
     df = sub.to_dataframe().reset_index().rename(columns={"latitude": "cell_lat", "longitude": "cell_lon"})
