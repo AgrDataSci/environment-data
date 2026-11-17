@@ -34,7 +34,7 @@ ds = xr.open_zarr(icechunk.Repository.open(storage).readonly_session("main").sto
 - One variable, `precipitation_surface`, in **kg m⁻² s⁻¹**. Multiply by 86400 for mm per day. Dims `(time, latitude, longitude)`.
 - Latitude is descending. Slice north to south: `latitude=slice(north, south)`.
 - Land only, 60°S to 60°N. Sea cells are NaN, so check coastal points after fetching.
-- Chunks are 365 days × 3° × 3°, so a point read costs one small request per year per 3° tile. Select dates first, pick all points in one vectorised `sel(method="nearest")`, `.compute()` once, and raise dask's thread count (reads are network-bound). Cost scales with the number of 3° tiles the points cover, not the number of points.
+- Chunks are 365 days × 3° × 3°, so a point read costs one small request per year per 3° tile. Select dates first, pick all points in one vectorised `sel(method="nearest")`, `.compute()` once, and raise dask's thread count (reads are network-bound). Cost scales with the number of 3° tiles the points cover, not the number of points. For a different window per point, index time with a (point, day) array of positions in the same vectorised `isel`; dask still fetches each chunk once. `select_daily` in `scripts/fetch.py` shows how.
 
 For a regional map rather than points, the Hugging Face copy `aaguilar90/chirps-v3-daily-rnl` is cheaper (15° chunks); from R it reads with `terra` and GDAL 3.11+, values × 0.1.
 

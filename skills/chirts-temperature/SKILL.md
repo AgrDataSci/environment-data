@@ -37,7 +37,7 @@ ds = xr.open_zarr("https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/
 - Two variables, `Tmax` and `Tmin`, in °C, stored as int16 in 0.1 °C steps; xarray decodes them and turns `-32768` into NaN. Dims `(time, lat, lon)`.
 - Latitude is descending. Slice north to south: `lat=slice(north, south)`.
 - Land only, 60°S to 70°N. Sea and lake cells are NaN every day.
-- Select dates first, pick all points in one vectorised `sel(method="nearest")`, `.compute()` once, raise dask's thread count.
+- Select dates first, pick all points in one vectorised `sel(method="nearest")`, `.compute()` once, raise dask's thread count. For a different window per point, index time with a (point, day) array of positions in the same vectorised `isel`; dask still fetches each chunk once. `select_daily` in `scripts/fetch.py` shows how.
 - From R, `terra::rast('ZARR:"path.zarr":/Tmax')` works with GDAL 3.11 or newer, but returns raw integers: multiply by 0.1 and set `NAflag` to -32768.
 
 ## Caveats

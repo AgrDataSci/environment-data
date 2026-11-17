@@ -60,7 +60,7 @@ def weather(request, monkeypatch):
 
 def test_shared_helpers_are_identical():
     """Each skill is self-contained, so the helpers are copied. This catches a copy that drifts."""
-    shared = {"validate_points": SKILLS, "reachable": SKILLS, "select_daily": WEATHER, "windows": WEATHER, "clip": WEATHER, "cli_points": WEATHER}
+    shared = {"validate_points": SKILLS, "reachable": SKILLS, "select_daily": WEATHER, "periods": WEATHER, "cli_points": WEATHER}
     for name, skills in shared.items():
         assert len({inspect.getsource(getattr(MODS[s], name)) for s in skills}) == 1, name
 
@@ -98,14 +98,6 @@ def test_window_outside_the_store_fails(weather):
         mod.fetch(late, days=10)
     with pytest.raises(ValueError, match="give start"):
         mod.fetch(POINTS)
-
-
-def test_overlapping_windows_share_a_read():
-    mod = MODS["chirts-temperature"]
-    pts = pd.DataFrame({"id": list("abcd"), "lat": [5.1, 5.2, 5.3, -20.0], "lon": 2.0, "date": ["2023-02-01", "2023-02-05", "2023-08-01", "2023-02-01"]})
-    groups = sorted(mod.windows(mod.validate_points(pts), 10), key=lambda g: (g[1], -len(g[0])))
-    assert [list(g.id) for g, _, _ in groups] == [["a", "b"], ["d"], ["c"]]  # d sits in another spatial chunk
-    assert groups[0][1:] == (pd.Timestamp("2023-02-01"), pd.Timestamp("2023-02-15"))
 
 
 @pytest.mark.parametrize("skill", SKILLS)

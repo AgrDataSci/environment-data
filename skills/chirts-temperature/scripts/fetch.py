@@ -15,13 +15,13 @@ import urllib.error
 import urllib.request
 
 import dask
+import numpy as np
 import pandas as pd
 import xarray as xr
 
 STORE = "https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/resolve/main/chirts-era5-daily.zarr"
 HOSTS = ["huggingface.co"]  # what a firewall must allow, plus the download host it redirects to (scripts/check.py names it)
 THREADS = 32  # reads wait on the network, not the CPU
-TILE = 15  # degrees; the store's spatial chunk, so grouped reads never fetch a chunk twice
 TMAX_OK = 60  # a few source pixels hold impossible values; mask above this
 
 
@@ -58,47 +58,49 @@ def validate_points(points: pd.DataFrame) -> pd.DataFrame:
     return points
 
 
-def select_daily(ds, points, start, end, lat, lon):
-    """Nearest cell per point. Off-grid points stay NaN; nearest alone would snap them to the edge cell."""
-    first, last = pd.to_datetime(ds.time.values[[0, -1]])
-    start, end = pd.Timestamp(start), pd.Timestamp(end or last)
-    if not first <= start <= end <= last:  # else the store silently returns a shorter series
-        raise ValueError(f"dates must be ordered and within {first.date()} to {last.date()}")
+def periods(points: pd.DataFrame, start, end, days) -> tuple[pd.DataFrame, int | None]:
+    """Each point's day 0 in `date`, and the days after it: one period for all (start, end), or each point's own date and days."""
+    if days is None:
+        if start is None:
+            raise ValueError("give start, or days with a date column in points")
+        days = (pd.Timestamp(end) - pd.Timestamp(start)).days if end else None  # None: to the store's last day
+        return points.assign(date=start), days
+    if "date" not in points:
+        raise ValueError("a window per point needs a date column")
+    points = points[pd.to_datetime(points.date).notna()].reset_index(drop=True)  # no date, no window
+    if points.empty:
+        raise ValueError("no point has a date")
+    return points, days
+
+
+def select_daily(ds, points, days, lat, lon):
+    """Nearest cell per point, from its `date` (day 0) to `days` later, or to the store's last day if days is None.
+
+    One vectorised read, so dask fetches each chunk once and in parallel. Off-grid points stay NaN; nearest alone would snap them to the edge cell."""
+    times = ds.indexes["time"].normalize()
+    day0 = pd.to_datetime(points.date).dt.normalize().values
+    days = (times[-1] - day0.min()).days if days is None else days
+    want = day0[:, None] + np.arange(max(days, 0) + 1) * np.timedelta64(1, "D")
+    ti = times.get_indexer(want.ravel()).reshape(want.shape)
+    if days < 0 or (ti < 0).any():  # else the store silently returns a shorter series
+        raise ValueError(f"dates must be ordered and within {times[0].date()} to {times[-1].date()}; "
+                         f"not so for ids {points.id[(ti < 0).any(axis=1)].tolist()}")
     on_grid = points.lat.notna() & points.lon.notna()
     for col, name in (("lat", lat), ("lon", lon)):
         axis = ds[name].values
         half = abs(axis[1] - axis[0]) / 2
         on_grid &= points[col].between(axis.min() - half, axis.max() + half)
-    pts = points[on_grid]
-    sel = {name: xr.DataArray(pts[col].values, dims="pt", coords={"pt": pts.index}) for col, name in (("lat", lat), ("lon", lon))}
+    idx = {}
+    for col, name in (("lat", lat), ("lon", lon)):  # off-grid points read any cell, then are masked
+        idx[name] = xr.DataArray(ds.indexes[name].get_indexer(points[col].where(on_grid, ds[name].values[0]), method="nearest"), dims="pt")
+    one = (day0 == day0[0]).all()  # one period for all: a plain slice is far cheaper than a per-point time index
+    idx["time"] = slice(ti[0, 0], ti[0, -1] + 1) if one else xr.DataArray(ti, dims=("pt", "day"))
     with dask.config.set(num_workers=THREADS):
-        sub = ds.sel(time=slice(start, end)).sel(**sel, method="nearest").compute()
-    return sub.reindex(pt=points.index)
-
-
-def windows(points: pd.DataFrame, days: int):
-    """Yield (points, start, end) reads that cover each point's own window, its date to `days` later.
-
-    Points in one spatial chunk whose windows overlap share a read, so no chunk is fetched for dates nobody asked for."""
-    if "date" not in points or days < 0:
-        raise ValueError("a window per point needs a date column and days of 0 or more")
-    pts = points.assign(date=pd.to_datetime(points.date).dt.normalize())
-    pts = pts[pts.date.notna()].sort_values("date")  # points without a date have no window
-    if pts.empty:
-        raise ValueError("no point has a date")
-    span = pd.Timedelta(days=days)
-    for _, tile in pts.groupby([(pts[c] // TILE).fillna(-999) for c in ("lat", "lon")]):
-        run = (tile.date > (tile.date + span).cummax().shift()).cumsum()  # a new read where windows stop overlapping
-        for _, g in tile.groupby(run):
-            yield g.reset_index(drop=True), g.date.min(), g.date.max() + span
-
-
-def clip(parts: list[pd.DataFrame], points: pd.DataFrame, days: int) -> pd.DataFrame:
-    """Keep each point's own window and count its days, 0 on the point's date."""
-    df = pd.concat(parts, ignore_index=True)
-    day0 = pd.to_datetime(points.set_index("id").date).dt.normalize()
-    df.insert(2, "day", (pd.to_datetime(df.date) - df.id.map(day0)).dt.days)
-    return df[df.day.between(0, days)].sort_values(["id", "date"]).reset_index(drop=True)
+        sub = ds.isel(idx).compute()
+    if one:
+        sub = sub.assign_coords(day=("time", np.arange(days + 1))).swap_dims(time="day").transpose("pt", "day")
+    keep = xr.DataArray(on_grid.values, dims="pt")
+    return sub.where(keep).assign_coords({n: sub[n].where(keep) for n in (lat, lon)})
 
 
 def cli_points(p: argparse.ArgumentParser, a: argparse.Namespace) -> pd.DataFrame:
@@ -113,25 +115,22 @@ def cli_points(p: argparse.ArgumentParser, a: argparse.Namespace) -> pd.DataFram
     return points
 
 
-def daily(ds: xr.Dataset, points: pd.DataFrame, start, end) -> pd.DataFrame:
-    sub = select_daily(ds[["Tmax", "Tmin"]], points, start, end, "lat", "lon")
+def daily(ds: xr.Dataset, points: pd.DataFrame, days: int | None) -> pd.DataFrame:
+    sub = select_daily(ds[["Tmax", "Tmin"]], points, days, "lat", "lon")
     sub = sub.where(sub <= TMAX_OK)
     df = sub.to_dataframe().reset_index().rename(columns={"Tmax": "tmax_c", "Tmin": "tmin_c", "lat": "cell_lat", "lon": "cell_lon"})
     df["id"] = points.id.values[df.pt]
     df["date"] = df.time.dt.date
-    return df[["id", "date", "tmax_c", "tmin_c", "cell_lat", "cell_lon"]].astype({"tmax_c": "float32", "tmin_c": "float32"})
+    return df[["id", "date", "day", "tmax_c", "tmin_c", "cell_lat", "cell_lon"]].astype({"tmax_c": "float32", "tmin_c": "float32"})
 
 
 def fetch(points: pd.DataFrame, start: str | None = None, end: str | None = None, days: int | None = None) -> pd.DataFrame:
     """One period for all points (start, end), or with days a window per point from its `date` column."""
-    points = validate_points(points)
-    if days is None and start is None:
-        raise ValueError("give start, or days with a date column in points")
+    keep_day = days is not None
+    points, days = periods(validate_points(points), start, end, days)
     reachable(HOSTS)
-    ds = open_store()
-    if days is None:
-        return daily(ds, points, start, end)
-    return clip([daily(ds, g, s, e) for g, s, e in windows(points, days)], points, days)
+    out = daily(open_store(), points, days)
+    return out if keep_day else out.drop(columns="day")
 
 
 if __name__ == "__main__":

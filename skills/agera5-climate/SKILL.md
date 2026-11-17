@@ -60,7 +60,7 @@ ds = xr.open_zarr("https://arco.datastores.ecmwf.int/cadl-arco-geo-001/arco/sis_
 - 27 variables, `ds.data_vars` lists them. Temperatures in K, radiation in J m⁻² d⁻¹, missing is `-9999` and decodes to NaN.
 - Latitude ascending from -90, longitude from -180. Chunks are 2112 days × 16 × 32 cells, so long periods at a few places are cheap and one day over a region is slow.
 - Each day runs midnight to midnight local time, not UTC.
-- Select variables and dates first, pick all points in one vectorised `sel(method="nearest")`, `.compute()` once, raise dask's thread count.
+- Select variables and dates first, pick all points in one vectorised `sel(method="nearest")`, `.compute()` once, raise dask's thread count. For a different window per point, index time with a (point, day) array of positions in the same vectorised `isel`; dask still fetches each chunk once. `select_daily` in `scripts/fetch.py` shows how.
 
 ## Caveats
 
