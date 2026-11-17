@@ -86,21 +86,18 @@ def select_daily(ds, points, days, lat, lon):
     if days < 0 or (ti < 0).any():  # else the store silently returns a shorter series
         raise ValueError(f"dates must be ordered and within {times[0].date()} to {times[-1].date()}; "
                          f"not so for ids {points.id[(ti < 0).any(axis=1)].tolist()}")
-    on_grid = points.lat.notna() & points.lon.notna()
-    for col, name in (("lat", lat), ("lon", lon)):
-        axis = ds[name].values
-        half = abs(axis[1] - axis[0]) / 2
-        on_grid &= points[col].between(axis.min() - half, axis.max() + half)
     idx = {}
-    for col, name in (("lat", lat), ("lon", lon)):  # off-grid points read any cell, then are masked
-        idx[name] = xr.DataArray(ds.indexes[name].get_indexer(points[col].where(on_grid, ds[name].values[0]), method="nearest"), dims="pt")
+    for col, name in (("lat", lat), ("lon", lon)):  # -1 when off grid or missing; it reads the last cell, then is masked
+        half = abs(float(ds[name][1] - ds[name][0])) / 2 + 1e-6  # slack: points on a cell edge must not round off grid
+        near = ds.indexes[name].get_indexer(points[col], method="nearest", tolerance=half)
+        idx[name] = xr.DataArray(near, dims="pt", coords={"pt": points.id.values})
     one = (day0 == day0[0]).all()  # one period for all: a plain slice is far cheaper than a per-point time index
     idx["time"] = slice(ti[0, 0], ti[0, -1] + 1) if one else xr.DataArray(ti, dims=("pt", "day"))
     with dask.config.set(num_workers=THREADS):
         sub = ds.isel(idx).compute()
     if one:
         sub = sub.assign_coords(day=("time", np.arange(days + 1))).swap_dims(time="day").transpose("pt", "day")
-    keep = xr.DataArray(on_grid.values, dims="pt")
+    keep = (idx[lat] >= 0) & (idx[lon] >= 0)
     return sub.where(keep).assign_coords({n: sub[n].where(keep) for n in (lat, lon)})
 
 
@@ -119,9 +116,8 @@ def cli_points(p: argparse.ArgumentParser, a: argparse.Namespace) -> pd.DataFram
 def daily(ds: xr.Dataset, points: pd.DataFrame, days: int | None) -> pd.DataFrame:
     sub = select_daily(ds.precipitation_surface, points, days, "latitude", "longitude")
     df = (sub * 86400).to_dataframe(name="precip_mm").reset_index()  # kg m-2 s-1 -> mm/day
-    df["id"] = points.id.values[df.pt]
     df["date"] = df.time.dt.date
-    df = df.rename(columns={"latitude": "cell_lat", "longitude": "cell_lon"})
+    df = df.rename(columns={"pt": "id", "latitude": "cell_lat", "longitude": "cell_lon"})
     return df[["id", "date", "day", "precip_mm", "cell_lat", "cell_lon"]].astype({"precip_mm": "float32"})
 
 

@@ -91,6 +91,12 @@ def test_one_period_for_all_points(weather):
     assert out[out.id == "a"][column].iloc[0] == pytest.approx(6.0 * scale, rel=1e-5)
 
 
+def test_point_on_a_cell_edge_is_on_grid(weather):
+    mod, column, _ = weather
+    edge = pd.DataFrame({"id": ["e"], "lat": [5.0 + 1e-9], "lon": [2.0]})  # float noise past the edge between two cells
+    assert mod.fetch(edge, "2023-03-01", "2023-03-02")[column].notna().all()
+
+
 def test_window_outside_the_store_fails(weather):
     mod, _, _ = weather
     late = POINTS.assign(date="2023-12-28")
