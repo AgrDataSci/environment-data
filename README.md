@@ -79,7 +79,7 @@ uv run --no-project --with pytest --with xarray --with "zarr>=3" --with icechunk
 python3 tests/smoke.py                                                                    # two points from every live store
 ```
 
-Both run on every pull request, and the live test runs every Monday to catch a store that moved.
+The offline tests run on every pull request. The live test runs on pull requests that change `skills/` or `tests/`, and every Monday to catch a store that moved.
 
 ---
 
