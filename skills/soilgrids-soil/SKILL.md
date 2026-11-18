@@ -45,6 +45,26 @@ Values are converted from SoilGrids' stored integers to the units below.
 
 Depths are `0-5cm`, `5-15cm`, `15-30cm`, `30-60cm`, `60-100cm`, `100-200cm`. `ocs` always produces a single `ocs_0_30cm` column, regardless of `--depths`. `--stat` is `mean` (default), `Q0.5` (median), or `Q0.05` and `Q0.95` for the bounds of the 90% prediction interval.
 
+## Regional reads at 1 km
+
+For area summaries or map clips, such as a district mean, read the 1 km lon/lat Zarr copy instead of sampling points. It holds the ISRIC 1 km means on a 1/120° WGS84 grid, so `sel` with slices works directly. Values come out in the units below. It needs `huggingface.co` and the download host it redirects to.
+
+```python
+# /// script
+# dependencies = ["xarray", "zarr", "fsspec", "aiohttp", "requests", "dask"]
+# ///
+import xarray as xr
+URL = "https://huggingface.co/datasets/aaguilar90/soilgrids-v2-1km/resolve/4e1f8cf7094f35daf62d2b527a5eb4ad3bdf769b/soilgrids-v2-1km.zarr"
+ds = xr.open_zarr(URL, consolidated=True, storage_options={"client_kwargs": {"trust_env": True}})
+clay = ds.clay.sel(lat=slice(1, -1), lon=slice(34, 36), depth=slice(0, 30))  # lat runs north to south
+clay.mean(["lat", "lon"])
+```
+
+- `depth` holds layer midpoints in cm (2.5, 10, 22.5, 45, 80); `depth_bnds` gives the layer edges.
+- It has `clay`, `sand`, `silt`, `soc`, `nitrogen`, `phh2o`, `cec`, `bdod`, `cfvo` and water content at 10, 33 and 1500 kPa (`wv0010`, `wv0033`, `wv1500`, in vol %). There is no `ocd`, no `ocs` and no 100–200 cm layer. It holds means only.
+- It was reprojected from ISRIC's grid by nearest neighbour, so about a third of cells hold the value of an adjacent ISRIC cell. Area means are unaffected. For single points, use `fetch.py`.
+- The URL is pinned to one commit of a third-party copy. If it stops resolving, use the ISRIC files below. Do not switch to `main` unpinned.
+
 ## If you need to read the files yourself
 
 ```

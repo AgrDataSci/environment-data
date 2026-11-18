@@ -56,7 +56,7 @@ The scripts read remote stores, and `uv` installs their packages on first run, s
 | `chirts-temperature` | `huggingface.co` and the download host it redirects to, which `scripts/check.py` names |
 | `agera5-climate` | `arco.datastores.ecmwf.int` |
 | `elevation` | `copernicus-dem-90m.s3.amazonaws.com` |
-| `soilgrids-soil` | `files.isric.org` |
+| `soilgrids-soil` | `files.isric.org`; regional 1 km reads also need `huggingface.co` and its download host |
 
 `python3 scripts/check.py [skill ...]` tests them with the standard library only, so it runs where nothing can be installed. When a script cannot read its store, its error names the host and points here.
 
