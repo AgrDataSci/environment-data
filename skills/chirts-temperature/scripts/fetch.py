@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["xarray", "zarr>=3", "dask", "fsspec", "aiohttp", "pandas", "pyarrow"]
+# dependencies = ["xarray", "zarr>=3", "dask", "fsspec", "aiohttp", "aiohttp-retry", "h5netcdf", "h5py", "pandas", "pyarrow"]
 # ///
 """Daily CHIRTS-ERA5 Tmax and Tmin for points. One row per point and day, degrees C.
 
@@ -8,17 +8,25 @@
     uv run fetch.py points.csv out.parquet --date-col planting_date --days 100
 
 points.csv needs columns id, lat, lon. Writes CSV if out ends in .csv, else parquet. end defaults to the latest day in the store.
-With --date-col each point gets its own window, from its date (day 0) to --days later."""
+With --date-col each point gets its own window, from its date (day 0) to --days later.
+If Hugging Face is unreachable, it reads the same data from the CHC server's yearly NetCDF files instead."""
 
 import argparse
+import sys
 
+import aiohttp
+from aiohttp_retry import ExponentialRetry, RetryClient
 import dask
+import fsspec
 import numpy as np
 import pandas as pd
 import xarray as xr
 
 STORE = "https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/resolve/main/chirts-era5-daily.zarr"
 HOSTS = ["huggingface.co"]  # what a firewall must allow, plus the download host it redirects to (scripts/check.py names it)
+FALLBACK = ["data.chc.ucsb.edu"]  # or this, the producer's own server
+CHC = "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/{v}/netcdf/daily/"
+NETWORK = (OSError, aiohttp.ClientError)
 THREADS = 32  # reads wait on the network, not the CPU
 TMAX_OK = 60  # a few source pixels hold impossible values; mask above this
 
@@ -26,6 +34,29 @@ TMAX_OK = 60  # a few source pixels hold impossible values; mask above this
 def open_store() -> xr.Dataset:
     # trust_env makes the HTTP client honour HTTPS_PROXY, which sandboxes and institutional networks route through
     return xr.open_zarr(STORE, consolidated=True, chunks={}, storage_options={"client_kwargs": {"trust_env": True}})
+
+
+async def chc_client(**_):
+    # data.chc.ucsb.edu answers 429 above a few requests a second; back off and retry
+    retry = ExponentialRetry(attempts=10, start_timeout=0.5, statuses={429, 502, 503, 504})
+    return RetryClient(client_session=aiohttp.ClientSession(trust_env=True), retry_options=retry)
+
+
+def open_chc(points: pd.DataFrame, days: int | None) -> xr.Dataset:
+    """The years the points need from the CHC server's yearly NetCDF files (chunked, so only the needed chunks are read).
+
+    The same CHIRTS-ERA5 the Hugging Face store copies, returned in its names. Only years with both Tmax and Tmin are kept."""
+    fs = fsspec.filesystem("https", get_client=chc_client)
+    day0 = pd.to_datetime(points.date)
+    last = (day0.max() + pd.Timedelta(days=days)).year if days is not None else pd.Timestamp.now().year
+    parts = []
+    for v, name in (("tmax", "Tmax"), ("tmin", "Tmin")):
+        listed = set(fs.ls(CHC.format(v=v), detail=False))  # years not yet published are left out; select_daily reports the gap
+        urls = [u for y in range(day0.min().year, last + 1) if (u := f"{CHC.format(v=v)}CHIRTS-ERA5.daily_{name}.{y}.nc") in listed]
+        if not urls:
+            raise ValueError(f"no CHIRTS-ERA5 {name} files on {FALLBACK[0]} for {day0.min().year} to {last}")
+        parts.append(xr.concat([xr.open_dataset(fs.open(u, block_size=2**20), engine="h5netcdf", chunks={}).temp for u in urls], "time").rename(name))
+    return xr.merge(parts, join="inner").rename(latitude="lat", longitude="lon")
 
 
 def validate_points(points: pd.DataFrame) -> pd.DataFrame:
@@ -110,8 +141,12 @@ def fetch(points: pd.DataFrame, start: str | None = None, end: str | None = None
     points, days = periods(validate_points(points), start, end, days)
     try:
         out = daily(open_store(), points, days)
-    except OSError as exc:  # a block, or a 404 if the store moved; check.py tells which
-        raise ConnectionError(f"could not read {', '.join(HOSTS)} ({exc}). If the network blocks it, run scripts/check.py; see 'Network' in the repository SKILL.md") from None
+    except NETWORK as exc:  # a block, or a 404 if the store moved; check.py tells which
+        print(f"could not read {HOSTS[0]} ({exc}); reading {FALLBACK[0]} instead, which is slower", file=sys.stderr)
+        try:
+            out = daily(open_chc(points, days), points, days)
+        except NETWORK as exc:
+            raise ConnectionError(f"could not read {HOSTS[0]} or {FALLBACK[0]} ({exc}). If the network blocks them, run scripts/check.py; see 'Network' in the repository SKILL.md") from None
     return out if keep_day else out.drop(columns="day")
 
 

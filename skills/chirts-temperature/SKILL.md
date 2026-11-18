@@ -20,7 +20,7 @@ uv run scripts/fetch.py points.csv temp.parquet --date-col planting_date --days 
 
 Give one period for all points with `--start`, or a window per point with `--date-col` and `--days`: each point is fetched from the date in that column (day 0) to `--days` later, and the output gains a `day` column counting from 0. Use the per-point form when points have their own dates, such as planting dates; it reads only the dates each point needs. A point with a blank date gets no rows and is listed. Use the requested period, asking if it is unspecified. `--end` defaults to the latest day actually in the store. Explicit dates outside store coverage fail with the available range; do not silently shorten a requested period. Needs only `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/)); it fetches Python and the packages on first run. Output is one row per point and day: `id`, `date`, `tmax_c`, `tmin_c`, `cell_lat`, `cell_lon`. Values above 60 °C are masked (a few source pixels hold impossible values). The script prints any point whose series is all NaN (missing coordinates, outside coverage or source nodata). Report these IDs and leave their coordinates unchanged.
 
-The script needs `pypi.org` and `files.pythonhosted.org` on first run and `huggingface.co` and the download host it redirects to (`scripts/check.py` in the repository names it) for the data. If it reports a host it cannot reach, the network is blocked, not the data missing: say so, name the host, and give the user the command to run on an open network. Do not switch source or estimate values.
+The script needs `pypi.org` and `files.pythonhosted.org` on first run and `huggingface.co` and the download host it redirects to (`scripts/check.py` in the repository names it) for the data. If Hugging Face is blocked, it switches by itself to the same product on the Climate Hazards Center (CHC) server, `data.chc.ucsb.edu`, and says so. That is the producer's own copy, so values match to the 0.1 °C rounding of the Hugging Face store; report which host was used. The fallback is slower: the server allows a few requests a second, so expect 30 to 60 s per point-year. If it reports that both hosts are unreachable, the network is blocked, not the data missing: say so, name the host, and give the user the command to run on an open network. Do not switch source or estimate values.
 
 ## Bandwidth
 
@@ -39,6 +39,19 @@ ds = xr.open_zarr("https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/
 - Land only, 60°S to 70°N. Sea and lake cells are NaN every day.
 - Select dates first, pick all points in one vectorised `sel(method="nearest")`, `.compute()` once, raise dask's thread count. For a different window per point, index time with a (point, day) array of positions in the same vectorised `isel`; dask still fetches each chunk once. `select_daily` in `scripts/fetch.py` shows how.
 - From R, `terra::rast('ZARR:"path.zarr":/Tmax')` works with GDAL 3.11 or newer, but returns raw integers: multiply by 0.1 and set `NAflag` to -32768.
+
+## Fallback: CHC server
+
+Yearly NetCDF4 files, one per variable, chunked 19 days × ~7° × ~19° and gzip-compressed, so xarray reads only the chunks a point needs over HTTP range requests:
+
+```python
+import fsspec, xarray as xr
+url = "https://data.chc.ucsb.edu/experimental/CHIRTS-ERA5/tmax/netcdf/daily/CHIRTS-ERA5.daily_Tmax.2024.nc"
+ds = xr.open_dataset(fsspec.open(url).open(), engine="h5netcdf", chunks={})
+```
+
+- Variable `temp` in °C (float, not scaled), dims `latitude`, `longitude`. Tmin is under `tmin/` and `daily_Tmin`. Latitude is **ascending** here.
+- The server returns HTTP 429 above a few requests a second. Retry with backoff; `chc_client` in `scripts/fetch.py` shows how.
 
 ## Caveats
 
