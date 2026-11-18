@@ -20,7 +20,7 @@ uv run scripts/fetch.py points.csv rain.parquet --date-col planting_date --days 
 
 Give one period for all points with `--start`, or a window per point with `--date-col` and `--days`: each point is fetched from the date in that column (day 0) to `--days` later, and the output gains a `day` column counting from 0. Use the per-point form when points have their own dates, such as planting dates; it reads only the dates each point needs. A point with a blank date gets no rows and is listed. Use the requested period, asking if it is unspecified. `--end` defaults to the latest day actually in the store. Explicit dates outside store coverage fail with the available range; do not silently shorten a requested period. Needs only `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/)); it fetches Python and the packages on first run. Output is one row per point and day: `id`, `date`, `precip_mm`, `cell_lat`, `cell_lon`. The script prints any point whose series is all NaN (missing coordinates, outside coverage or source nodata). Report these IDs and leave their coordinates unchanged.
 
-The script needs `pypi.org` and `files.pythonhosted.org` on first run and `dynamical-ucsb-chc-chirps.s3.us-west-2.amazonaws.com` for the data. If it reports a host it cannot reach, the network is blocked, not the data missing: say so, name the host, and give the user the command to run on an open network. Do not switch source or estimate values.
+The script needs `pypi.org` and `files.pythonhosted.org` on first run and `dynamical-ucsb-chc-chirps.s3.us-west-2.amazonaws.com` for the data. If S3 is blocked, it switches by itself to the same product on the Climate Hazards Center (CHC) server, `data.chc.ucsb.edu`, and says so. That is the producer's own copy, so values match to about 0.05 mm; report which host was used. The fallback is slower: the server allows a few requests a second, so expect about 20 s per point-year per 10° × 30° tile. If it reports that both hosts are unreachable, the network is blocked, not the data missing: say so, name the host, and give the user the command to run on an open network. Do not switch source or estimate values.
 
 ## If you need to read the store yourself
 
@@ -37,6 +37,21 @@ ds = xr.open_zarr(icechunk.Repository.open(storage).readonly_session("main").sto
 - Chunks are 365 days × 3° × 3°, so a point read costs one small request per year per 3° tile. Select dates first, pick all points in one vectorised `sel(method="nearest")`, `.compute()` once, and raise dask's thread count (reads are network-bound). Cost scales with the number of 3° tiles the points cover, not the number of points. For a different window per point, index time with a (point, day) array of positions in the same vectorised `isel`; dask still fetches each chunk once. `select_daily` in `scripts/fetch.py` shows how.
 
 For a regional map rather than points, the Hugging Face copy `aaguilar90/chirps-v3-daily-rnl` is cheaper (15° chunks); from R it reads with `terra` and GDAL 3.11+, values × 0.1.
+
+## Fallback: CHC server
+
+Yearly NetCDF4 files, chunked 31 days × 10° × 30° and gzip-compressed, so xarray reads only the chunks a point needs over HTTP range requests:
+
+```python
+import fsspec, xarray as xr
+url = "https://data.chc.ucsb.edu/products/CHIRPS/v3.0/daily/final/rnl/netcdf/byYear/chirps-v3.0.rnl.2024.days_p05.nc"
+ds = xr.open_dataset(fsspec.open(url).open(), engine="h5netcdf", chunks={})
+```
+
+- Variable `precip` in **mm per day**. Latitude is **ascending** here, unlike the S3 store.
+- `rnl` means the pentad totals are split into days using ERA5; `sat` (IMERG, 1998 onward) is a different daily product. The S3 store holds `rnl`.
+- The server returns HTTP 429 above a few requests a second. Retry with backoff; `chc_client` in `scripts/fetch.py` shows how.
+- Daily Cloud Optimized GeoTIFFs (COGs) are also there under `rnl/cogs/YYYY/`, one file per day. They suit a map for one day, not long point series.
 
 ## Combining with other sources
 
