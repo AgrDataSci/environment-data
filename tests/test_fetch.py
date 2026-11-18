@@ -54,13 +54,12 @@ def store(lat: str, lon: str, variables: list[str], descending: bool) -> xr.Data
 def weather(request, monkeypatch):
     mod, (lat, lon, variables, descending, column, scale) = MODS[request.param], STORES[request.param]
     monkeypatch.setattr(mod, "open_store", lambda: store(lat, lon, variables, descending))
-    monkeypatch.setattr(mod, "reachable", lambda hosts: None)
     return mod, column, scale
 
 
 def test_shared_helpers_are_identical():
     """Each skill is self-contained, so the helpers are copied. This catches a copy that drifts."""
-    shared = {"validate_points": SKILLS, "reachable": SKILLS, "select_daily": WEATHER, "periods": WEATHER, "cli_points": WEATHER}
+    shared = {"validate_points": SKILLS, "select_daily": WEATHER, "periods": WEATHER, "cli_points": WEATHER}
     for name, skills in shared.items():
         assert len({inspect.getsource(getattr(MODS[s], name)) for s in skills}) == 1, name
 
@@ -95,6 +94,13 @@ def test_point_on_a_cell_edge_is_on_grid(weather):
     mod, column, _ = weather
     edge = pd.DataFrame({"id": ["e"], "lat": [5.0 + 1e-9], "lon": [2.0]})  # float noise past the edge between two cells
     assert mod.fetch(edge, "2023-03-01", "2023-03-02")[column].notna().all()
+
+
+def test_a_failed_read_points_to_check(weather, monkeypatch):
+    mod, _, _ = weather
+    monkeypatch.setattr(mod, "open_store", lambda: (_ for _ in ()).throw(OSError("Cannot connect to host 127.0.0.1:9")))
+    with pytest.raises(ConnectionError, match="check.py"):
+        mod.fetch(POINTS, "2023-03-01", "2023-03-02")
 
 
 def test_window_outside_the_store_fails(weather):

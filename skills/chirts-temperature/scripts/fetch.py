@@ -11,8 +11,6 @@ points.csv needs columns id, lat, lon. Writes CSV if out ends in .csv, else parq
 With --date-col each point gets its own window, from its date (day 0) to --days later."""
 
 import argparse
-import urllib.error
-import urllib.request
 
 import dask
 import numpy as np
@@ -23,20 +21,6 @@ STORE = "https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/resolve/ma
 HOSTS = ["huggingface.co"]  # what a firewall must allow, plus the download host it redirects to (scripts/check.py names it)
 THREADS = 32  # reads wait on the network, not the CPU
 TMAX_OK = 60  # a few source pixels hold impossible values; mask above this
-
-
-def reachable(hosts: list[str]) -> None:
-    """Fail early and name the host when a firewall or sandbox blocks the store. Any HTTP answer counts as reachable."""
-    for host in hosts:
-        try:
-            urllib.request.urlopen(urllib.request.Request(f"https://{host}/", method="HEAD"), timeout=20)
-        except urllib.error.HTTPError:
-            pass  # the host answered
-        except OSError as exc:
-            raise ConnectionError(
-                f"cannot reach {host} ({exc}). This is a network block, not missing data. Allow {', '.join(hosts)} "
-                "or run the same command on a machine with open internet. See 'Network' in the repository SKILL.md."
-            ) from None
 
 
 def open_store() -> xr.Dataset:
@@ -124,8 +108,10 @@ def fetch(points: pd.DataFrame, start: str | None = None, end: str | None = None
     """One period for all points (start, end), or with days a window per point from its `date` column."""
     keep_day = days is not None
     points, days = periods(validate_points(points), start, end, days)
-    reachable(HOSTS)
-    out = daily(open_store(), points, days)
+    try:
+        out = daily(open_store(), points, days)
+    except OSError as exc:  # a block, or a 404 if the store moved; check.py tells which
+        raise ConnectionError(f"could not read {', '.join(HOSTS)} ({exc}). If the network blocks it, run scripts/check.py; see 'Network' in the repository SKILL.md") from None
     return out if keep_day else out.drop(columns="day")
 
 

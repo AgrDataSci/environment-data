@@ -13,8 +13,6 @@ Default variables are the ones CHIRPS and CHIRTS do not have; the rest are avail
 
 import argparse
 import os
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 import dask
@@ -51,20 +49,6 @@ def cds_key() -> str:
             if line.strip().startswith("key:"):
                 return line.split(":", 1)[1].strip()
     raise SystemExit("No CDS key. Set CDSAPI_KEY or write ~/.cdsapirc; see SKILL.md for how to get one.")
-
-
-def reachable(hosts: list[str]) -> None:
-    """Fail early and name the host when a firewall or sandbox blocks the store. Any HTTP answer counts as reachable."""
-    for host in hosts:
-        try:
-            urllib.request.urlopen(urllib.request.Request(f"https://{host}/", method="HEAD"), timeout=20)
-        except urllib.error.HTTPError:
-            pass  # the host answered
-        except OSError as exc:
-            raise ConnectionError(
-                f"cannot reach {host} ({exc}). This is a network block, not missing data. Allow {', '.join(hosts)} "
-                "or run the same command on a machine with open internet. See 'Network' in the repository SKILL.md."
-            ) from None
 
 
 def open_store() -> xr.Dataset:
@@ -158,8 +142,10 @@ def fetch(points: pd.DataFrame, start: str | None = None, end: str | None = None
         raise ValueError(f"unknown variables {sorted(bad)}; choose from {', '.join(VARS)}")
     keep_day = days is not None
     points, days = periods(validate_points(points), start, end, days)
-    reachable(HOSTS)
-    out = daily(open_store(), points, days, names)
+    try:
+        out = daily(open_store(), points, days, names)
+    except OSError as exc:  # a block, or a 404 if the store moved; check.py tells which
+        raise ConnectionError(f"could not read {', '.join(HOSTS)} ({exc}). If the network blocks it, run scripts/check.py; see 'Network' in the repository SKILL.md") from None
     return out if keep_day else out.drop(columns="day")
 
 

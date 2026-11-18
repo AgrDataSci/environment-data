@@ -58,7 +58,7 @@ The scripts read remote stores, and `uv` installs their packages on first run, s
 | `elevation` | `copernicus-dem-90m.s3.amazonaws.com` |
 | `soilgrids-soil` | `files.isric.org` |
 
-`python3 scripts/check.py [skill ...]` tests them with the standard library only, so it runs where nothing can be installed. Each script also checks its store before reading and fails with the blocked host named.
+`python3 scripts/check.py [skill ...]` tests them with the standard library only, so it runs where nothing can be installed. When a script cannot read its store, its error names the host and points here.
 
 When a host is blocked:
 

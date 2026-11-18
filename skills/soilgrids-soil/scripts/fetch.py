@@ -9,8 +9,6 @@
 points.csv needs columns id, lat, lon. Writes CSV if out ends in .csv, else parquet. Values are in conventional units (see SKILL.md)."""
 
 import argparse
-import urllib.error
-import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -32,20 +30,6 @@ DEFAULT_PROPS = "clay,sand,silt,soc,nitrogen,phh2o,cec,bdod,cfvo"
 DEFAULT_DEPTHS = "0-5cm,5-15cm,15-30cm"
 GDAL = dict(GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR", GDAL_HTTP_MAX_RETRY=3, GDAL_HTTP_RETRY_DELAY=2)
 HOSTS = ["files.isric.org"]  # what a firewall must allow
-
-
-def reachable(hosts: list[str]) -> None:
-    """Fail early and name the host when a firewall or sandbox blocks the store. Any HTTP answer counts as reachable."""
-    for host in hosts:
-        try:
-            urllib.request.urlopen(urllib.request.Request(f"https://{host}/", method="HEAD"), timeout=20)
-        except urllib.error.HTTPError:
-            pass  # the host answered
-        except OSError as exc:
-            raise ConnectionError(
-                f"cannot reach {host} ({exc}). This is a network block, not missing data. Allow {', '.join(hosts)} "
-                "or run the same command on a machine with open internet. See 'Network' in the repository SKILL.md."
-            ) from None
 
 
 def layer(prop: str, depth: str, stat: str, res: int, lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
@@ -80,14 +64,16 @@ def fetch(points: pd.DataFrame, props: list[str], depths: list[str], stat: str =
         raise ValueError(f"unknown {sorted(bad)}; properties {', '.join(FACTOR)}; depths {', '.join(DEPTHS)}; stats {', '.join(STATS)}")
     if res not in URL or (res == 1000 and stat != "mean"):
         raise ValueError("res is 250 or 1000, and 1000 has the mean only")
-    reachable(HOSTS)
     # ocs (carbon stock) exists only for 0-30cm
     jobs = [(p, "0-30cm" if p == "ocs" else d) for p in props for d in depths]
     jobs = list(dict.fromkeys(jobs))
     lat, lon = points.lat.to_numpy(float), points.lon.to_numpy(float)
-    with ThreadPoolExecutor(min(32, len(jobs))) as ex:  # each layer opens its own 6 MB VRT; network-bound
-        cols = ex.map(lambda j: layer(*j, stat, res, lat, lon), jobs)
-        out = {f"{p}_{d.replace('-', '_')}": c for (p, d), c in zip(jobs, cols)}
+    try:
+        with ThreadPoolExecutor(min(32, len(jobs))) as ex:  # each layer opens its own 6 MB VRT; network-bound
+            cols = ex.map(lambda j: layer(*j, stat, res, lat, lon), jobs)
+            out = {f"{p}_{d.replace('-', '_')}": c for (p, d), c in zip(jobs, cols)}
+    except OSError as exc:  # a block, or a 404 if the store moved; check.py tells which
+        raise ConnectionError(f"could not read {', '.join(HOSTS)} ({exc}). If the network blocks it, run scripts/check.py; see 'Network' in the repository SKILL.md") from None
     return pd.DataFrame({"id": points.id, **out})
 
 

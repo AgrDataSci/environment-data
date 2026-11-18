@@ -10,8 +10,6 @@ points.csv needs columns id, lat, lon. Writes CSV if out ends in .csv, else parq
 
 import argparse
 import math
-import urllib.error
-import urllib.request
 from collections import defaultdict
 
 import numpy as np
@@ -25,20 +23,6 @@ TILE = (
     "Copernicus_DSM_COG_30_{t}_DEM/Copernicus_DSM_COG_30_{t}_DEM.tif"
 )
 HOSTS = ["copernicus-dem-90m.s3.amazonaws.com"]  # what a firewall must allow
-
-
-def reachable(hosts: list[str]) -> None:
-    """Fail early and name the host when a firewall or sandbox blocks the store. Any HTTP answer counts as reachable."""
-    for host in hosts:
-        try:
-            urllib.request.urlopen(urllib.request.Request(f"https://{host}/", method="HEAD"), timeout=20)
-        except urllib.error.HTTPError:
-            pass  # the host answered
-        except OSError as exc:
-            raise ConnectionError(
-                f"cannot reach {host} ({exc}). This is a network block, not missing data. Allow {', '.join(hosts)} "
-                "or run the same command on a machine with open internet. See 'Network' in the repository SKILL.md."
-            ) from None
 
 
 def tile_url(lat: float, lon: float) -> str:
@@ -64,7 +48,6 @@ def validate_points(points: pd.DataFrame) -> pd.DataFrame:
 
 def fetch(points: pd.DataFrame) -> pd.DataFrame:
     points = validate_points(points)
-    reachable(HOSTS)
     out = np.full(len(points), np.nan)
     by_tile = defaultdict(list)
     for i, (lat, lon) in enumerate(zip(points.lat, points.lon)):
@@ -79,7 +62,7 @@ def fetch(points: pd.DataFrame) -> pd.DataFrame:
             except RasterioIOError as exc:
                 # A missing ocean tile is expected; a failed connection is not nodata.
                 if "404" not in str(exc):
-                    raise
+                    raise ConnectionError(f"could not read {', '.join(HOSTS)} ({exc}). If the network blocks it, run scripts/check.py; see 'Network' in the repository SKILL.md") from None
     return pd.DataFrame({"id": points.id, "elevation_m": out.astype("float32")})
 
 
