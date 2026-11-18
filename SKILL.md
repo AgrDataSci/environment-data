@@ -52,17 +52,17 @@ The scripts read remote stores, and `uv` installs their packages on first run, s
 | Need | Hosts |
 |---|---|
 | Packages, first run of any script | `pypi.org`, `files.pythonhosted.org` |
-| `chirps-rainfall` | `dynamical-ucsb-chc-chirps.s3.us-west-2.amazonaws.com` |
-| `chirts-temperature` | `huggingface.co` and the download host it redirects to, which `scripts/check.py` names |
+| `chirps-rainfall` | `dynamical-ucsb-chc-chirps.s3.us-west-2.amazonaws.com`, or else `data.chc.ucsb.edu` |
+| `chirts-temperature` | `huggingface.co` and the download host it redirects to, which `scripts/check.py` names, or else `data.chc.ucsb.edu` |
 | `agera5-climate` | `arco.datastores.ecmwf.int` |
 | `elevation` | `copernicus-dem-90m.s3.amazonaws.com` |
 | `soilgrids-soil` | `files.isric.org`; regional 1 km reads also need `huggingface.co` and its download host |
 
-`python3 scripts/check.py [skill ...]` tests them with the standard library only, so it runs where nothing can be installed. When a script cannot read its store, its error names the host and points here.
+The CHIRPS and CHIRTS scripts switch to `data.chc.ucsb.edu`, the producer's own server, by themselves when their first host is blocked. That is the same data and needs no action; report which host was used. `python3 scripts/check.py [skill ...]` tests them with the standard library only, so it runs where nothing can be installed. When a script cannot read its store, its error names the host and points here.
 
 When a host is blocked:
 
-1. Run `scripts/check.py` once and report the blocked hosts as it prints them. Do not retry with other tools, mirrors or another data source the user did not ask for.
+1. Run `scripts/check.py` once and report the blocked hosts as it prints them. Do not retry with other tools, mirrors or another data source the user did not ask for. The built-in CHC fallback is the only exception.
 2. Never estimate, simulate or fill in the values. A blocked network is not missing data.
 3. Prepare everything that needs no network: the points file and the exact command.
 4. Give the user two ways forward: allow the hosts in the agent's network settings (the change may only apply to a new session), or run the command on their own machine and share the output file.

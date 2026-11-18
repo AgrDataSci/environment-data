@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["pytest", "xarray", "zarr>=3", "icechunk", "dask", "fsspec", "aiohttp", "pandas", "pyarrow", "rasterio", "numpy"]
+# dependencies = ["pytest", "xarray", "zarr>=3", "icechunk", "dask", "fsspec", "aiohttp", "aiohttp-retry", "h5netcdf", "h5py", "pandas", "pyarrow", "rasterio", "numpy"]
 # ///
 """Offline tests on synthetic stores. No network. The dependencies are every skill's, plus pytest.
 
@@ -63,7 +63,7 @@ def weather(request, monkeypatch):
 
 def test_shared_helpers_are_identical():
     """Each skill is self-contained, so the helpers are copied. This catches a copy that drifts."""
-    shared = {"validate_points": SKILLS, "select_daily": WEATHER, "periods": WEATHER, "cli_points": WEATHER}
+    shared = {"validate_points": SKILLS, "select_daily": WEATHER, "periods": WEATHER, "cli_points": WEATHER, "chc_client": ["chirps-rainfall", "chirts-temperature"]}
     for name, skills in shared.items():
         assert len({inspect.getsource(getattr(MODS[s], name)) for s in skills}) == 1, name
 
@@ -71,6 +71,7 @@ def test_shared_helpers_are_identical():
 def test_check_knows_every_host():
     check = load(ROOT / "scripts" / "check.py")
     assert {s: check.NEEDS[s] for s in SKILLS} == {s: MODS[s].HOSTS for s in SKILLS}
+    assert check.FALLBACK == {s: m.FALLBACK for s, m in MODS.items() if hasattr(m, "FALLBACK")}
 
 
 def test_window_per_point(weather):
@@ -103,8 +104,18 @@ def test_point_on_a_cell_edge_is_on_grid(weather):
 def test_a_failed_read_points_to_check(weather, monkeypatch):
     mod, _, _ = weather
     monkeypatch.setattr(mod, "open_store", lambda: (_ for _ in ()).throw(OSError("Cannot connect to host 127.0.0.1:9")))
+    monkeypatch.setattr(mod, "open_chc", lambda *_: (_ for _ in ()).throw(OSError("Cannot connect to host 127.0.0.1:9")), raising=False)
     with pytest.raises(ConnectionError, match="check.py"):
         mod.fetch(POINTS, "2023-03-01", "2023-03-02")
+
+
+@pytest.mark.parametrize("skill", ["chirps-rainfall", "chirts-temperature"])
+def test_a_blocked_store_falls_back_to_chc(skill, monkeypatch):
+    mod, (lat, lon, variables, descending, column, scale) = MODS[skill], STORES[skill]
+    monkeypatch.setattr(mod, "open_store", lambda: (_ for _ in ()).throw(OSError("blocked")))
+    monkeypatch.setattr(mod, "open_chc", lambda *_: store(lat, lon, variables, False))  # CHC files run south to north
+    out = mod.fetch(POINTS, "2023-03-01", "2023-03-05")
+    assert out[out.id == "a"][column].iloc[0] == pytest.approx(6.0 * scale, rel=1e-5)
 
 
 def test_window_outside_the_store_fails(weather):

@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["xarray", "zarr>=3", "icechunk", "dask", "pandas", "pyarrow"]
+# dependencies = ["xarray", "zarr>=3", "icechunk", "dask", "pandas", "pyarrow", "fsspec", "aiohttp", "aiohttp-retry", "h5netcdf", "h5py"]
 # ///
 """Daily CHIRPS v3 rainfall for points. One row per point and day, mm.
 
@@ -8,18 +8,26 @@
     uv run fetch.py points.csv out.parquet --date-col planting_date --days 100
 
 points.csv needs columns id, lat, lon. Writes CSV if out ends in .csv, else parquet. end defaults to the latest day in the store.
-With --date-col each point gets its own window, from its date (day 0) to --days later."""
+With --date-col each point gets its own window, from its date (day 0) to --days later.
+If the S3 store is unreachable, it reads the same data from the CHC server's yearly NetCDF files instead."""
 
 import argparse
+import sys
 
 import dask
 import numpy as np
+import aiohttp
+from aiohttp_retry import ExponentialRetry, RetryClient
+import fsspec
 import icechunk
 import pandas as pd
 import xarray as xr
 
 STORE = ("dynamical-ucsb-chc-chirps", "ucsb-chc-chirps-analysis-final/v0.1.0.icechunk")
 HOSTS = ["dynamical-ucsb-chc-chirps.s3.us-west-2.amazonaws.com"]  # what a firewall must allow
+FALLBACK = ["data.chc.ucsb.edu"]  # or this, the producer's own server
+CHC = "https://data.chc.ucsb.edu/products/CHIRPS/v3.0/daily/final/rnl/netcdf/byYear/"
+NETWORK = (OSError, aiohttp.ClientError, icechunk.StorageError)
 THREADS = 32  # reads wait on the network, not the CPU
 
 
@@ -27,6 +35,27 @@ def open_store() -> xr.Dataset:
     storage = icechunk.s3_storage(bucket=STORE[0], prefix=STORE[1], region="us-west-2", anonymous=True)
     session = icechunk.Repository.open(storage).readonly_session("main")
     return xr.open_zarr(session.store, consolidated=False, chunks={})
+
+
+async def chc_client(**_):
+    # data.chc.ucsb.edu answers 429 above a few requests a second; back off and retry
+    retry = ExponentialRetry(attempts=10, start_timeout=0.5, statuses={429, 502, 503, 504})
+    return RetryClient(client_session=aiohttp.ClientSession(trust_env=True), retry_options=retry)
+
+
+def open_chc(points: pd.DataFrame, days: int | None) -> xr.Dataset:
+    """The years the points need from the CHC server's yearly NetCDF files (chunked, so only the needed chunks are read).
+
+    CHIRPS v3 final, ERA5-disaggregated ('rnl'): the product the S3 store holds. Returned in the S3 store's names and units."""
+    fs = fsspec.filesystem("https", get_client=chc_client)
+    day0 = pd.to_datetime(points.date)
+    last = (day0.max() + pd.Timedelta(days=days)).year if days is not None else pd.Timestamp.now().year
+    listed = set(fs.ls(CHC, detail=False))  # years not yet published are left out; select_daily reports the gap
+    urls = [u for y in range(day0.min().year, last + 1) if (u := f"{CHC}chirps-v3.0.rnl.{y}.days_p05.nc") in listed]
+    if not urls:
+        raise ValueError(f"no CHIRPS files on {FALLBACK[0]} for {day0.min().year} to {last}")
+    ds = xr.concat([xr.open_dataset(fs.open(u, block_size=2**20), engine="h5netcdf", chunks={}) for u in urls], "time")
+    return (ds.precip / 86400).to_dataset(name="precipitation_surface")  # mm/day -> kg m-2 s-1, as on S3
 
 
 def validate_points(points: pd.DataFrame) -> pd.DataFrame:
@@ -111,8 +140,12 @@ def fetch(points: pd.DataFrame, start: str | None = None, end: str | None = None
     points, days = periods(validate_points(points), start, end, days)
     try:
         out = daily(open_store(), points, days)
-    except (OSError, icechunk.StorageError) as exc:  # a block, or a 404 if the store moved; check.py tells which
-        raise ConnectionError(f"could not read {', '.join(HOSTS)} ({exc}). If the network blocks it, run scripts/check.py; see 'Network' in the repository SKILL.md") from None
+    except NETWORK as exc:  # a block, or a 404 if the store moved; check.py tells which
+        print(f"could not read {HOSTS[0]} ({exc}); reading {FALLBACK[0]} instead, which is slower", file=sys.stderr)
+        try:
+            out = daily(open_chc(points, days), points, days)
+        except NETWORK as exc:
+            raise ConnectionError(f"could not read {HOSTS[0]} or {FALLBACK[0]} ({exc}). If the network blocks them, run scripts/check.py; see 'Network' in the repository SKILL.md") from None
     return out if keep_day else out.drop(columns="day")
 
 

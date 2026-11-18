@@ -19,6 +19,11 @@ NEEDS = {
     "elevation": ["copernicus-dem-90m.s3.amazonaws.com"],
     "soilgrids-soil": ["files.isric.org"],
 }
+# a second source the fetch script switches to when the first is blocked; the skill works if either is reachable
+FALLBACK = {
+    "chirps-rainfall": ["data.chc.ucsb.edu"],
+    "chirts-temperature": ["data.chc.ucsb.edu"],
+}
 # one data chunk per store that redirects downloads to other hosts, such as Hugging Face; the check follows it to name them
 FOLLOW = {
     "chirts-temperature": ["https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/resolve/main/chirts-era5-daily.zarr/Tmax/c/0/0/0"],
@@ -71,9 +76,13 @@ if __name__ == "__main__":
         if need in FOLLOW and not any(results.values()):  # redirects can only be followed once the store's host answers
             for url in FOLLOW[need]:
                 results |= {h: blocked(h) for h in redirect_hosts(url) if h not in results}
-        for host, why in results.items():
-            print(f"{'BLOCKED' if why else 'ok':8}{need:20}{host}{f'  ({why})' if why else ''}")
-            failed += [host] if why else []
+        backup = {h: blocked(h) for h in FALLBACK.get(need, [])}
+        for host, why in (results | backup).items():
+            print(f"{'BLOCKED' if why else 'ok':8}{need:20}{host}{' (fallback)' if host in backup else ''}{f'  ({why})' if why else ''}")
+        if any(results.values()) and (not backup or any(backup.values())):
+            failed += [h for h, why in (results | backup).items() if why]
+        elif any(results.values()):
+            print(f"{'':8}{need:20}will use the fallback, which is slower")
     if failed:
         print(f"\nThis network blocks {len(failed)} host(s). Allow them, or run the fetch on a machine with open internet:")
         sys.exit("\n".join(failed))
