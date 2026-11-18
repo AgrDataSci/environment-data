@@ -19,6 +19,8 @@ uv run scripts/fetch.py points.csv elevation.parquet
 
 Needs only `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/)); it fetches Python and the packages on first run. Output is one row per point: `id`, `elevation_m`. The script prints IDs left NaN because coordinates are missing, a tile is absent, or the source cell is nodata. Network and other read errors fail the run. `(0, 0)` is a valid coordinate, not an automatic missing-value sentinel.
 
+The script needs `pypi.org` and `files.pythonhosted.org` on first run and `copernicus-dem-90m.s3.amazonaws.com` for the data. If it reports a host it cannot reach, the network is blocked, not the data missing: say so, name the host, and give the user the command to run on an open network. Do not switch source or estimate values.
+
 ## If you need to read the tiles yourself
 
 Tiles are named by their south-west corner, so (-1.95, 30.06) is in `S02_00_E030_00`:

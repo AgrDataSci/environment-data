@@ -22,6 +22,7 @@ TILE = (
     "https://copernicus-dem-90m.s3.amazonaws.com/"
     "Copernicus_DSM_COG_30_{t}_DEM/Copernicus_DSM_COG_30_{t}_DEM.tif"
 )
+HOSTS = ["copernicus-dem-90m.s3.amazonaws.com"]  # what a firewall must allow
 
 
 def tile_url(lat: float, lon: float) -> str:
@@ -33,7 +34,10 @@ def tile_url(lat: float, lon: float) -> str:
 
 def validate_points(points: pd.DataFrame) -> pd.DataFrame:
     """Unique ids so outputs join cleanly; WGS84 ranges catch swapped or projected coordinates."""
+    if missing := {"id", "lat", "lon"} - set(points.columns):
+        raise ValueError(f"points need columns id, lat, lon; missing {sorted(missing)}")
     points = points.reset_index(drop=True)
+    points = points.assign(lat=pd.to_numeric(points.lat), lon=pd.to_numeric(points.lon))
     if points.id.isna().any() or points.id.duplicated().any():
         raise ValueError("points need unique, non-empty ids")
     for col, limit in (("lat", 90), ("lon", 180)):
@@ -58,7 +62,7 @@ def fetch(points: pd.DataFrame) -> pd.DataFrame:
             except RasterioIOError as exc:
                 # A missing ocean tile is expected; a failed connection is not nodata.
                 if "404" not in str(exc):
-                    raise
+                    raise ConnectionError(f"could not read {', '.join(HOSTS)} ({exc}). If the network blocks it, run scripts/check.py; see 'Network' in the repository SKILL.md") from None
     return pd.DataFrame({"id": points.id, "elevation_m": out.astype("float32")})
 
 

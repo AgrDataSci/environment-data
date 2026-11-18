@@ -15,9 +15,12 @@ Resolve `scripts/fetch.py` relative to this skill's directory, not the user's wo
 
 ```sh
 uv run scripts/fetch.py points.csv temp.parquet --start 2020-01-01 --end 2025-12-31
+uv run scripts/fetch.py points.csv temp.parquet --date-col planting_date --days 100
 ```
 
-`--start` is required; use the requested period, asking if it is unspecified. `--end` defaults to the latest day actually in the store. Explicit dates outside store coverage fail with the available range; do not silently shorten a requested period. Needs only `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/)); it fetches Python and the packages on first run. Output is one row per point and day: `id`, `date`, `tmax_c`, `tmin_c`, `cell_lat`, `cell_lon`. Values above 60 °C are masked (a few source pixels hold impossible values). The script prints any point whose series is all NaN (missing coordinates, outside coverage or source nodata). Report these IDs and leave their coordinates unchanged.
+Give one period for all points with `--start`, or a window per point with `--date-col` and `--days`: each point is fetched from the date in that column (day 0) to `--days` later, and the output gains a `day` column counting from 0. Use the per-point form when points have their own dates, such as planting dates; it reads only the dates each point needs. A point with a blank date gets no rows and is listed. Use the requested period, asking if it is unspecified. `--end` defaults to the latest day actually in the store. Explicit dates outside store coverage fail with the available range; do not silently shorten a requested period. Needs only `uv` ([install](https://docs.astral.sh/uv/getting-started/installation/)); it fetches Python and the packages on first run. Output is one row per point and day: `id`, `date`, `tmax_c`, `tmin_c`, `cell_lat`, `cell_lon`. Values above 60 °C are masked (a few source pixels hold impossible values). The script prints any point whose series is all NaN (missing coordinates, outside coverage or source nodata). Report these IDs and leave their coordinates unchanged.
+
+The script needs `pypi.org` and `files.pythonhosted.org` on first run and `huggingface.co` and the download host it redirects to (`scripts/check.py` in the repository names it) for the data. If it reports a host it cannot reach, the network is blocked, not the data missing: say so, name the host, and give the user the command to run on an open network. Do not switch source or estimate values.
 
 ## Bandwidth
 
@@ -34,7 +37,7 @@ ds = xr.open_zarr("https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/
 - Two variables, `Tmax` and `Tmin`, in °C, stored as int16 in 0.1 °C steps; xarray decodes them and turns `-32768` into NaN. Dims `(time, lat, lon)`.
 - Latitude is descending. Slice north to south: `lat=slice(north, south)`.
 - Land only, 60°S to 70°N. Sea and lake cells are NaN every day.
-- Select dates first, pick all points in one vectorised `sel(method="nearest")`, `.compute()` once, raise dask's thread count.
+- Select dates first, pick all points in one vectorised `sel(method="nearest")`, `.compute()` once, raise dask's thread count. For a different window per point, index time with a (point, day) array of positions in the same vectorised `isel`; dask still fetches each chunk once. `select_daily` in `scripts/fetch.py` shows how.
 - From R, `terra::rast('ZARR:"path.zarr":/Tmax')` works with GDAL 3.11 or newer, but returns raw integers: multiply by 0.1 and set `NAflag` to -32768.
 
 ## Caveats
