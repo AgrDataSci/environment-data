@@ -8,7 +8,7 @@ import shutil
 import sys
 import urllib.error
 import urllib.request
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 # host lists mirror HOSTS in each skill's scripts/fetch.py
 NEEDS = {
@@ -19,18 +19,15 @@ NEEDS = {
     "elevation": ["copernicus-dem-90m.s3.amazonaws.com"],
     "soilgrids-soil": ["files.isric.org"],
 }
-CHIRTS = "https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/resolve/main/chirts-era5-daily.zarr/"
-CHUNKS = ["Tmax/0.0.0", "Tmax/0/0/0", "Tmax/c/0/0/0"]  # the first chunk under the layouts Zarr uses
+# one data chunk per store that redirects downloads to other hosts, such as Hugging Face; the check follows it to name them
+FOLLOW = {
+    "chirts-temperature": ["https://huggingface.co/datasets/aaguilar90/chirts-era5-daily/resolve/main/chirts-era5-daily.zarr/Tmax/c/0/0/0"],
+}
 
 
-class Trail(urllib.request.HTTPRedirectHandler):
-    """Remember each host a download is redirected to."""
-
-    hosts: list[str] = []
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        self.hosts.append(urlsplit(newurl).hostname)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args):  # hand back each 3xx so its Location can be read
+        return None
 
 
 def blocked(host: str) -> str | None:
@@ -44,19 +41,21 @@ def blocked(host: str) -> str | None:
     return None
 
 
-def chirts_download_hosts() -> dict[str, str | None]:
-    """Hugging Face serves data files from a second host. Follow one chunk to find it and test it."""
-    opener = urllib.request.build_opener(Trail)
-    for chunk in CHUNKS:
-        Trail.hosts = []
+def redirect_hosts(url: str) -> list[str]:
+    """Each host a download is sent on to, hop by hop. A host that does not answer ends the chain and is still listed."""
+    hosts, opener = [], urllib.request.build_opener(NoRedirect)
+    for _ in range(5):  # real chains are one or two hops; this stops a loop
         try:
-            opener.open(urllib.request.Request(CHIRTS + chunk, headers={"Range": "bytes=0-0"}), timeout=20)
-            return {h: None for h in Trail.hosts}
-        except urllib.error.HTTPError:
-            continue  # not this layout
-        except OSError as exc:
-            return {h: (str(getattr(exc, "reason", exc)) if h == Trail.hosts[-1] else None) for h in Trail.hosts}
-    return {}
+            opener.open(urllib.request.Request(url, method="HEAD"), timeout=20)
+        except urllib.error.HTTPError as exc:
+            if location := exc.headers.get("Location"):
+                url = urljoin(url, location)
+                hosts.append(urlsplit(url).hostname)
+                continue
+        except OSError:
+            pass
+        break
+    return list(dict.fromkeys(hosts))
 
 
 if __name__ == "__main__":
@@ -69,8 +68,9 @@ if __name__ == "__main__":
     failed = []
     for need in ["packages", *skills]:
         results = {h: blocked(h) for h in NEEDS[need]}
-        if need == "chirts-temperature" and not results["huggingface.co"]:
-            results |= chirts_download_hosts()
+        if need in FOLLOW and not any(results.values()):  # redirects can only be followed once the store's host answers
+            for url in FOLLOW[need]:
+                results |= {h: blocked(h) for h in redirect_hosts(url) if h not in results}
         for host, why in results.items():
             print(f"{'BLOCKED' if why else 'ok':8}{need:20}{host}{f'  ({why})' if why else ''}")
             failed += [host] if why else []
