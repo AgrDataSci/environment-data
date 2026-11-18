@@ -1,12 +1,16 @@
-"""Offline tests on synthetic stores. No network.
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["pytest", "xarray", "zarr>=3", "icechunk", "dask", "fsspec", "aiohttp", "pandas", "pyarrow", "rasterio", "numpy"]
+# ///
+"""Offline tests on synthetic stores. No network. The dependencies are every skill's, plus pytest.
 
-    uv run --no-project --with pytest --with xarray --with "zarr>=3" --with icechunk --with dask --with fsspec \
-        --with aiohttp --with pandas --with pyarrow --with rasterio --with numpy pytest tests
+    uv run tests/test_fetch.py
 """
 
 import argparse
 import importlib.util
 import inspect
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -132,3 +136,7 @@ def test_cli_takes_one_mode(tmp_path):
     for wrong in ({"days": None}, {"start": "2023-01-01"}, {"date_col": None}, {"date_col": "sowing"}):
         with pytest.raises(SystemExit):
             mod.cli_points(parser, argparse.Namespace(**(args | wrong)))
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__, *sys.argv[1:]]))

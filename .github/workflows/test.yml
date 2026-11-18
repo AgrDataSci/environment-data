@@ -15,6 +15,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - name: Unit tests on synthetic stores
-        run: >
-          uv run --no-project --python 3.12 --with pytest --with xarray --with "zarr>=3" --with icechunk --with dask
-          --with fsspec --with aiohttp --with pandas --with pyarrow --with rasterio --with numpy pytest tests
+        run: uv run tests/test_fetch.py

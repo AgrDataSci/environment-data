@@ -74,9 +74,8 @@ The scripts read remote stores and `uv` installs their packages on first run. Sa
 ## Tests
 
 ```sh
-uv run --no-project --with pytest --with xarray --with "zarr>=3" --with icechunk --with dask --with fsspec \
-  --with aiohttp --with pandas --with pyarrow --with rasterio --with numpy pytest tests   # offline, synthetic stores
-python3 tests/smoke.py                                                                    # two points from every live store
+uv run tests/test_fetch.py   # offline, synthetic stores
+python3 tests/smoke.py       # two points from every live store
 ```
 
 The offline tests run on every pull request. The live test runs on pull requests that change `skills/` or `tests/`, and every Monday to catch a store that moved.
