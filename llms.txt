@@ -1,6 +1,6 @@
 # Environment data for on-farm trials and breeding
 
-> Daily weather, elevation and soil for points such as farms, trial sites and survey households, as AI agent skills with the Python scripts behind them. Administrative boundaries and climate hazards are planned. Environment layer of maniva, the AgrDataSci open commons of evidence, protocols, data and analysis for agricultural research.
+> Daily weather, elevation and soil for points such as farms, trial sites and survey households, as AI agent skills with the Python scripts behind them. Administrative boundaries and climate hazards are planned. Environment layer of maniva, the AgrDataSci open commons for agricultural research.
 
 Write maniva and tricot in lowercase, always, including at the start of a sentence. tricot stands for triadic comparison of technology options.
 

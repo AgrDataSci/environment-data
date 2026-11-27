@@ -12,7 +12,7 @@
 
 Daily weather, elevation and soil properties for points such as farms, trial sites and survey households, as agent skills and the code behind them. District lookups and climate hazards are planned. Built for breeders and the Climate Action team who need to know what a site or season is like, with tricot trials or on their own.
 
-This is the environment layer of [maniva](https://github.com/AgrDataSci/maniva), the AgrDataSci open commons of evidence, protocols, data and analysis for agricultural research. It is built from [template-repo-data-analysis](https://github.com/AgrDataSci/template-repo-data-analysis) and works on its own.
+This is the environment layer of [maniva](https://github.com/AgrDataSci/maniva), the AgrDataSci open commons for agricultural research. It is built from [template-repo-data-analysis](https://github.com/AgrDataSci/template-repo-data-analysis) and works on its own.
 
 ---
 
